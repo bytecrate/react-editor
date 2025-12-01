@@ -59,6 +59,257 @@ const DEFAULT_VARIABLES = [
   { label: 'Unsubscribe Link', value: '{{unsubscribe}}' },
 ];
 
+// Internal CSS styles to remove Tailwind dependency
+const EDITOR_STYLES = `
+  .ree-container {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  
+  .ree-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f9fafb;
+    user-select: none;
+  }
+
+  .ree-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding-right: 8px;
+    border-right: 1px solid #e5e7eb;
+    margin-right: 4px;
+  }
+
+  .ree-group:last-child {
+    border-right: none;
+  }
+
+  .ree-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 4px;
+    color: #4b5563;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .ree-btn:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+  }
+
+  .ree-btn.active {
+    background-color: #eff6ff;
+    color: #2563eb;
+  }
+
+  .ree-select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .ree-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: transparent;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 4px 8px;
+    padding-right: 24px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .ree-select:hover {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+  }
+
+  .ree-chevron {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #9ca3af;
+  }
+
+  .ree-dropdown-container {
+    position: relative;
+  }
+
+  .ree-popup {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border-radius: 6px;
+    padding: 12px;
+    z-index: 50;
+    min-width: 200px;
+    animation: ree-fade-in 0.1s ease-out;
+  }
+
+  @keyframes ree-fade-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .ree-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .ree-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .ree-color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+
+  .ree-color-swatch:hover {
+    transform: scale(1.1);
+    border-color: #9ca3af;
+  }
+
+  .ree-color-input {
+    width: 100%;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .ree-list-btn {
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #374151;
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .ree-list-btn:hover {
+    background-color: #eff6ff;
+    color: #2563eb;
+  }
+
+  .ree-pad-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .ree-pad-label {
+    color: #6b7280;
+    font-size: 12px;
+    text-transform: capitalize;
+    width: 40px;
+  }
+
+  .ree-pad-ctrl {
+    display: flex;
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    background-color: #f9fafb;
+    overflow: hidden;
+  }
+
+  .ree-pad-btn {
+    padding: 4px 6px;
+    background: transparent;
+    border: none;
+    color: #4b5563;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+  }
+  
+  .ree-pad-btn:hover {
+    background-color: #e5e7eb;
+  }
+
+  .ree-pad-val {
+    font-size: 12px;
+    font-weight: 500;
+    width: 32px;
+    text-align: center;
+    color: #374151;
+    user-select: none;
+  }
+
+  .ree-editor-area {
+    flex: 1;
+    position: relative;
+    background-color: white;
+  }
+
+  .ree-content {
+    width: 100%;
+    height: 100%;
+    outline: none;
+    overflow-y: auto;
+  }
+
+  .ree-placeholder {
+    position: absolute;
+    color: #9ca3af;
+    pointer-events: none;
+  }
+
+  /* Editor Content Styles */
+  .ree-content ul { list-style-type: disc; padding-left: 1.5em; margin: 1em 0; }
+  .ree-content ol { list-style-type: decimal; padding-left: 1.5em; margin: 1em 0; }
+  .ree-content h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+  .ree-content h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; }
+  .ree-content p { margin: 1em 0; }
+  .ree-content blockquote { border-left: 4px solid #e5e7eb; margin: 1em 0; padding-left: 1em; color: #4b5563; font-style: italic; }
+  .ree-content a { color: #2563eb; text-decoration: underline; }
+  .ree-content img { max-width: 100%; height: auto; border-radius: 4px; }
+`;
+
 export const EmailEditor: React.FC<EmailEditorProps> = ({
   initialValue = "",
   onChange,
@@ -72,6 +323,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const variablesRef = useRef<HTMLDivElement>(null);
   const paddingPickerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [activeFormats, setActiveFormats] = useState<string[]>([]);
   const [currentFont, setCurrentFont] = useState<string>('Arial');
@@ -227,16 +479,11 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const updatePadding = (side: keyof typeof paddings, value: number) => {
     const block = getSelectedBlock();
     if (block) {
-        // Construct the CSS property name (e.g., paddingTop)
         const sideName = side as string;
         const prop = `padding${sideName.charAt(0).toUpperCase() + sideName.slice(1)}`;
-        // Apply directly to the element's style
-        // @ts-ignore - dynamic style property access
+        // @ts-ignore
         block.style[prop] = `${value}px`;
-        
-        // Update local state to reflect change immediately
         setPaddings(prev => ({ ...prev, [side]: value }));
-        
         handleInput();
     }
   };
@@ -256,8 +503,27 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   };
 
   const addImage = () => {
-    const url = prompt("Enter Image URL:");
-    if (url) execCommand("insertImage", url);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (base64) {
+          execCommand("insertImage", base64);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset the input value to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const ToolbarButton = ({ 
@@ -281,9 +547,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
         else if (command === "insertImage") addImage();
         else execCommand(command, value);
       }}
-      className={`p-2 rounded hover:bg-gray-100 transition-colors ${
-        isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
-      }`}
+      className={`ree-btn ${isActive ? 'active' : ''}`}
       title={label}
     >
       <Icon size={18} />
@@ -291,23 +555,34 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   );
 
   return (
-    <div className={`flex flex-col border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm ${className}`} style={style}>
+    <div className={`ree-container ${className}`} style={style}>
+      <style>{EDITOR_STYLES}</style>
+      
+      {/* Hidden File Input for Image Upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageSelection}
+        accept="image/*"
+        style={{ display: 'none' }}
+      />
+      
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b border-gray-200 bg-gray-50 select-none">
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1">
+      <div className="ree-toolbar">
+        <div className="ree-group">
           <ToolbarButton icon={Undo} command="undo" label="Undo" />
           <ToolbarButton icon={Redo} command="redo" label="Redo" />
         </div>
         
         {/* Font Family Selector */}
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1">
-          <div className="relative flex items-center">
+        <div className="ree-group">
+          <div className="ree-select-wrapper">
              <select
-              className="appearance-none bg-transparent hover:bg-gray-100 text-gray-700 text-sm font-medium py-1 pl-2 pr-6 rounded border border-transparent hover:border-gray-200 focus:outline-none cursor-pointer"
+              className="ree-select"
               value={currentFont}
               onChange={(e) => execCommand('fontName', e.target.value)}
               title="Font Family"
-              style={{ width: '130px' }}
+              style={{ width: '130px', fontFamily: currentFont }}
             >
               {FONT_FAMILIES.map((font) => (
                 <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -315,7 +590,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
                 </option>
               ))}
             </select>
-            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+            <div className="ree-chevron">
               <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -324,10 +599,10 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
         </div>
 
         {/* Font Size Selector */}
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1">
-          <div className="relative flex items-center">
+        <div className="ree-group">
+          <div className="ree-select-wrapper">
              <select
-              className="appearance-none bg-transparent hover:bg-gray-100 text-gray-700 text-sm font-medium py-1 pl-2 pr-6 rounded border border-transparent hover:border-gray-200 focus:outline-none cursor-pointer"
+              className="ree-select"
               value={currentFontSize}
               onChange={(e) => execFontSize(e.target.value)}
               title="Font Size"
@@ -339,7 +614,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
                 </option>
               ))}
             </select>
-            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+            <div className="ree-chevron">
               <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -348,45 +623,45 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
         </div>
 
         {/* Padding Selector Dropdown */}
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1 relative" ref={paddingPickerRef}>
+        <div className="ree-group ree-dropdown-container" ref={paddingPickerRef}>
            <button
             type="button"
             onClick={() => setShowPaddingPicker(!showPaddingPicker)}
-            className={`p-2 rounded hover:bg-gray-100 transition-colors ${showPaddingPicker ? 'bg-gray-200' : ''}`}
+            className={`ree-btn ${showPaddingPicker ? 'active' : ''}`}
             title="Padding & Spacing"
           >
-            <Move size={18} className="text-gray-600" />
+            <Move size={18} />
           </button>
 
           {showPaddingPicker && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg p-3 z-50 w-48 animate-in fade-in zoom-in duration-100">
-              <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Padding (px)</div>
-              <div className="space-y-2">
+            <div className="ree-popup" style={{ width: '200px' }}>
+              <div className="ree-label">Padding (px)</div>
+              <div>
                 {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
-                  <div key={side} className="flex items-center justify-between">
-                    <span className="text-gray-500 text-xs capitalize w-10">{side}</span>
-                    <div className="flex items-center gap-0.5 border border-gray-200 rounded bg-gray-50">
+                  <div key={side} className="ree-pad-row">
+                    <span className="ree-pad-label">{side}</span>
+                    <div className="ree-pad-ctrl">
                       <button
                         type="button"
                         onMouseDown={(e) => {
-                           e.preventDefault(); // Prevent losing focus from editor
+                           e.preventDefault(); 
                            updatePadding(side, Math.max(0, paddings[side] - 1));
                         }}
-                        className="p-1.5 hover:bg-gray-200 text-gray-600 transition-colors rounded-l focus:outline-none"
+                        className="ree-pad-btn"
                         title="Decrease"
                       >
                         <Minus size={10} />
                       </button>
-                      <span className="text-xs font-medium w-8 text-center text-gray-700 select-none">
+                      <span className="ree-pad-val">
                         {paddings[side]}
                       </span>
                       <button
                         type="button"
                         onMouseDown={(e) => {
-                           e.preventDefault(); // Prevent losing focus from editor
+                           e.preventDefault(); 
                            updatePadding(side, paddings[side] + 1);
                         }}
-                        className="p-1.5 hover:bg-gray-200 text-gray-600 transition-colors rounded-r focus:outline-none"
+                        className="ree-pad-btn"
                         title="Increase"
                       >
                         <Plus size={10} />
@@ -400,11 +675,11 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
         </div>
 
         {/* Text Color Picker */}
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1 relative" ref={colorPickerRef}>
+        <div className="ree-group ree-dropdown-container" ref={colorPickerRef}>
           <button
             type="button"
             onClick={() => setShowColorPicker(!showColorPicker)}
-            className={`p-2 rounded hover:bg-gray-100 transition-colors ${showColorPicker ? 'bg-gray-200' : ''}`}
+            className={`ree-btn ${showColorPicker ? 'active' : ''}`}
             title="Text Color"
           >
             <Palette 
@@ -418,14 +693,14 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
           </button>
           
           {showColorPicker && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg p-3 z-50 w-56 animate-in fade-in zoom-in duration-100">
-              <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Presets</div>
-              <div className="grid grid-cols-5 gap-1.5 mb-3">
+            <div className="ree-popup" style={{ width: '220px' }}>
+              <div className="ree-label">Presets</div>
+              <div className="ree-grid">
                 {PRESET_COLORS.map(color => (
                   <button
                     key={color}
                     type="button"
-                    className="w-8 h-8 rounded border border-gray-200 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    className="ree-color-swatch"
                     style={{ backgroundColor: color }}
                     onMouseDown={(e) => {
                       e.preventDefault();
@@ -436,12 +711,12 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
                   />
                 ))}
               </div>
-              <div className="border-t border-gray-100 pt-2 mt-2">
-                 <div className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Custom</div>
-                <div className="flex items-center gap-2">
+              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '8px' }}>
+                 <div className="ree-label">Custom</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="color"
-                    className="w-full h-8 p-0 border-0 rounded cursor-pointer"
+                    className="ree-color-input"
                     onChange={(e) => {
                       execCommand('foreColor', e.target.value);
                       setShowColorPicker(false);
@@ -455,27 +730,29 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
         </div>
 
         {/* Variables Picker */}
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1 relative" ref={variablesRef}>
+        <div className="ree-group ree-dropdown-container" ref={variablesRef}>
           <button
             type="button"
             onClick={() => setShowVariables(!showVariables)}
-            className={`p-2 rounded hover:bg-gray-100 transition-colors flex items-center gap-1 ${showVariables ? 'bg-gray-200' : ''}`}
+            className={`ree-btn ${showVariables ? 'active' : ''}`}
             title="Insert Variable"
           >
             <Braces size={18} />
           </button>
 
           {showVariables && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg py-1 z-50 w-48 animate-in fade-in zoom-in duration-100">
-               <div className="text-xs font-semibold text-gray-500 px-3 py-2 border-b border-gray-100 uppercase tracking-wider">Insert Variable</div>
-               <div className="max-h-60 overflow-y-auto">
+            <div className="ree-popup" style={{ width: '200px', padding: '0' }}>
+               <div className="ree-label" style={{ padding: '8px 12px', borderBottom: '1px solid #e5e7eb', margin: 0 }}>
+                 Insert Variable
+               </div>
+               <div style={{ maxHeight: '240px', overflowY: 'auto', padding: '4px' }}>
                  {variables.length > 0 ? (
                    variables.map((variable) => (
                      <button
                        key={variable.value}
-                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                       className="ree-list-btn"
                        onMouseDown={(e) => {
-                         e.preventDefault(); // Prevent focus loss
+                         e.preventDefault();
                          insertVariable(variable.value);
                        }}
                      >
@@ -483,39 +760,41 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
                      </button>
                    ))
                  ) : (
-                   <div className="px-4 py-2 text-sm text-gray-400 italic">No variables available</div>
+                   <div style={{ padding: '8px 12px', fontSize: '14px', color: '#9ca3af', fontStyle: 'italic' }}>
+                     No variables available
+                   </div>
                  )}
                </div>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1">
+        <div className="ree-group">
           <ToolbarButton icon={Heading1} command="formatBlock" value="H1" label="Heading 1" />
           <ToolbarButton icon={Heading2} command="formatBlock" value="H2" label="Heading 2" />
           <ToolbarButton icon={Type} command="formatBlock" value="P" label="Paragraph" />
         </div>
 
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1">
+        <div className="ree-group">
           <ToolbarButton icon={Bold} command="bold" isActive={activeFormats.includes('bold')} label="Bold" />
           <ToolbarButton icon={Italic} command="italic" isActive={activeFormats.includes('italic')} label="Italic" />
           <ToolbarButton icon={Underline} command="underline" isActive={activeFormats.includes('underline')} label="Underline" />
           <ToolbarButton icon={Strikethrough} command="strikeThrough" isActive={activeFormats.includes('strikeThrough')} label="Strikethrough" />
         </div>
 
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1">
+        <div className="ree-group">
           <ToolbarButton icon={AlignLeft} command="justifyLeft" isActive={activeFormats.includes('justifyLeft')} label="Align Left" />
           <ToolbarButton icon={AlignCenter} command="justifyCenter" isActive={activeFormats.includes('justifyCenter')} label="Align Center" />
           <ToolbarButton icon={AlignRight} command="justifyRight" isActive={activeFormats.includes('justifyRight')} label="Align Right" />
           <ToolbarButton icon={AlignJustify} command="justifyFull" isActive={activeFormats.includes('justifyFull')} label="Justify" />
         </div>
 
-        <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 mr-1">
+        <div className="ree-group">
           <ToolbarButton icon={List} command="insertUnorderedList" isActive={activeFormats.includes('insertUnorderedList')} label="Bullet List" />
           <ToolbarButton icon={ListOrdered} command="insertOrderedList" isActive={activeFormats.includes('insertOrderedList')} label="Ordered List" />
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="ree-group" style={{ borderRight: 'none' }}>
           <ToolbarButton icon={LinkIcon} command="createLink" label="Link" />
           <ToolbarButton icon={ImageIcon} command="insertImage" label="Image" />
           <ToolbarButton icon={Quote} command="formatBlock" value="BLOCKQUOTE" label="Quote" />
@@ -525,12 +804,12 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
 
       {/* Editor Surface */}
       <div 
-        className="flex-1 relative bg-white"
+        className="ree-editor-area"
         onClick={() => contentRef.current?.focus()}
       >
         <div 
           ref={contentRef}
-          className="w-full h-full outline-none overflow-y-auto prose max-w-none"
+          className="ree-content"
           contentEditable
           onInput={handleInput}
           onKeyUp={updateActiveFormats}
@@ -542,21 +821,9 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
           suppressContentEditableWarning
         />
         {(!contentRef.current?.innerText && !contentRef.current?.innerHTML) && (
-           <div className="absolute top-6 left-6 text-gray-400 pointer-events-none" style={{ top: paddings.top || 24, left: paddings.left || 24 }}>{placeholder}</div>
+           <div className="ree-placeholder" style={{ top: paddings.top || 24, left: paddings.left || 24 }}>{placeholder}</div>
         )}
       </div>
-
-      {/* Injection of styles for the editable content itself to ensure consistency */}
-      <style>{`
-        [contenteditable] ul { list-style-type: disc; padding-left: 1.5em; margin: 1em 0; }
-        [contenteditable] ol { list-style-type: decimal; padding-left: 1.5em; margin: 1em 0; }
-        [contenteditable] h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
-        [contenteditable] h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; }
-        [contenteditable] p { margin: 1em 0; }
-        [contenteditable] blockquote { border-left: 4px solid #e5e7eb; margin: 1em 0; padding-left: 1em; color: #4b5563; font-style: italic; }
-        [contenteditable] a { color: #2563eb; text-decoration: underline; }
-        [contenteditable] img { max-width: 100%; height: auto; border-radius: 4px; }
-      `}</style>
     </div>
   );
 };
