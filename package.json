@@ -2,9 +2,8 @@
   "name": "@bytecrate/react-editor",
   "version": "1.0.0",
   "description": "A lightweight, dependency-free React editor.",
-  "main": "dist/index.js",
-  "module": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
+  "main": "index.tsx",
+  "types": "index.tsx",
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
