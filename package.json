@@ -1,0 +1,24 @@
+{
+  "name": "@bytecrate/react-editor",
+  "version": "1.0.0",
+  "description": "A lightweight, dependency-free React editor.",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "lucide-react": "^0.400.0"
+  },
+  "keywords": [
+    "react",
+    "email",
+    "editor",
+    "wysiwyg",
+    "template"
+  ],
+  "author": "Dhairya",
+  "license": "MIT"
+}

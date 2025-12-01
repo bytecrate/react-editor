@@ -1,0 +1,5 @@
+{
+  "description": "A lightweight, dependency-free React editor.",
+  "requestFramePermissions": [],
+  "name": "@bytecrate/react-editor"
+}
