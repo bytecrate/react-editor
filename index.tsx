@@ -20,6 +20,13 @@ export interface EmailEditorProps {
   placeholder?: string;
   variables?: Variable[];
   defaultPadding?: string;
+  /**
+   * Optional callback to handle image uploads.
+   * If provided, this function will be called when a user selects an image from their device.
+   * It should return a Promise that resolves to the image URL.
+   * If not provided, images will be converted to Base64.
+   */
+  onImageUpload?: (file: File) => Promise<string>;
 }
 
 const FONT_FAMILIES = [
@@ -317,7 +324,8 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   className = "",
   placeholder = "Start writing your email...",
   variables = DEFAULT_VARIABLES,
-  defaultPadding = "24px"
+  defaultPadding = "24px",
+  onImageUpload
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -520,17 +528,28 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
     if (url) execCommand("insertImage", url);
   };
 
-  const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        if (base64) {
-          execCommand("insertImage", base64);
+      if (onImageUpload) {
+        try {
+          const url = await onImageUpload(file);
+          if (url) {
+            execCommand("insertImage", url);
+          }
+        } catch (err) {
+          console.error("Error uploading image:", err);
         }
-      };
-      reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64 = event.target?.result as string;
+          if (base64) {
+            execCommand("insertImage", base64);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
     // Reset the input value to allow selecting the same file again
     if (fileInputRef.current) {
