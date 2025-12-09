@@ -306,6 +306,34 @@ const EDITOR_STYLES = `
     pointer-events: none;
   }
 
+  /* Resizer Styles */
+  .ree-resizer {
+    position: absolute;
+    border: 2px solid #3b82f6;
+    pointer-events: none;
+    z-index: 40;
+    display: none;
+  }
+  
+  .ree-resizer.active {
+    display: block;
+  }
+
+  .ree-resize-handle {
+    width: 10px;
+    height: 10px;
+    background-color: white;
+    border: 1px solid #3b82f6;
+    position: absolute;
+    pointer-events: auto;
+    z-index: 41;
+  }
+
+  .ree-handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
+  .ree-handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+  .ree-handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
+  .ree-handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
+
   /* Editor Content Styles */
   .ree-content ul { list-style-type: disc; padding-left: 1.5em; margin: 1em 0; }
   .ree-content ol { list-style-type: decimal; padding-left: 1.5em; margin: 1em 0; }
@@ -314,7 +342,7 @@ const EDITOR_STYLES = `
   .ree-content p { margin: 1em 0; }
   .ree-content blockquote { border-left: 4px solid #e5e7eb; margin: 1em 0; padding-left: 1em; color: #4b5563; font-style: italic; }
   .ree-content a { color: #2563eb; text-decoration: underline; }
-  .ree-content img { max-width: 100%; height: auto; border-radius: 4px; }
+  .ree-content img { max-width: 100%; height: auto; border-radius: 4px; cursor: pointer; }
 `;
 
 export const EmailEditor: React.FC<EmailEditorProps> = ({
@@ -333,6 +361,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const paddingPickerRef = useRef<HTMLDivElement>(null);
   const imagePickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resizerRef = useRef<HTMLDivElement>(null);
   
   const [activeFormats, setActiveFormats] = useState<string[]>([]);
   const [currentFont, setCurrentFont] = useState<string>('Arial');
@@ -347,6 +376,16 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const [showVariables, setShowVariables] = useState(false);
   const [showImagePicker, setShowImagePicker] = useState(false);
 
+  // Image Resizing State
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  const [resizeState, setResizeState] = useState<{
+    w: number;
+    h: number;
+    x: number;
+    y: number;
+    dir: string;
+  } | null>(null);
+
   // Initialize content and default padding
   useEffect(() => {
     if (contentRef.current) {
@@ -357,6 +396,37 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       contentRef.current.style.padding = defaultPadding;
     }
   }, []);
+
+  // Update Resizer Position
+  const updateResizer = useCallback(() => {
+    if (selectedImg && resizerRef.current && contentRef.current) {
+      const containerRect = contentRef.current.getBoundingClientRect();
+      const imgRect = selectedImg.getBoundingClientRect();
+      
+      const top = imgRect.top - containerRect.top + contentRef.current.scrollTop;
+      const left = imgRect.left - containerRect.left + contentRef.current.scrollLeft;
+      
+      resizerRef.current.style.top = `${top}px`;
+      resizerRef.current.style.left = `${left}px`;
+      resizerRef.current.style.width = `${imgRect.width}px`;
+      resizerRef.current.style.height = `${imgRect.height}px`;
+    }
+  }, [selectedImg]);
+
+  // Hook up scroll listener to update resizer
+  useEffect(() => {
+    const contentEl = contentRef.current;
+    if (contentEl) {
+      contentEl.addEventListener('scroll', updateResizer);
+      return () => contentEl.removeEventListener('scroll', updateResizer);
+    }
+  }, [updateResizer]);
+
+  useEffect(() => {
+    updateResizer();
+    window.addEventListener('resize', updateResizer);
+    return () => window.removeEventListener('resize', updateResizer);
+  }, [selectedImg, updateResizer]);
 
   // Handle click outside dropdowns
   useEffect(() => {
@@ -373,10 +443,80 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       if (imagePickerRef.current && !imagePickerRef.current.contains(event.target as Node)) {
         setShowImagePicker(false);
       }
+      
+      // Deselect image if clicking outside image and outside resizer
+      if (selectedImg && contentRef.current?.contains(event.target as Node)) {
+        if (event.target !== selectedImg) {
+             setSelectedImg(null);
+        }
+      } else if (selectedImg && !contentRef.current?.contains(event.target as Node)) {
+        // Clicked totally outside editor
+         setSelectedImg(null);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [selectedImg]);
+
+  // Resize Drag Handlers
+  const handleResizeMouseDown = (e: React.MouseEvent, dir: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectedImg) return;
+    
+    setResizeState({
+      w: selectedImg.offsetWidth,
+      h: selectedImg.offsetHeight,
+      x: e.clientX,
+      y: e.clientY,
+      dir
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeState || !selectedImg) return;
+
+      const deltaX = e.clientX - resizeState.x;
+      const deltaY = e.clientY - resizeState.y;
+
+      let newWidth = resizeState.w;
+      let newHeight = resizeState.h;
+
+      // Maintain aspect ratio logic could be added here, currently free resize
+      if (resizeState.dir.includes('e')) newWidth += deltaX;
+      if (resizeState.dir.includes('w')) newWidth -= deltaX;
+      if (resizeState.dir.includes('s')) newHeight += deltaY;
+      if (resizeState.dir.includes('n')) newHeight -= deltaY;
+
+      // Minimum constraint
+      if (newWidth > 20) selectedImg.style.width = `${newWidth}px`;
+      if (newHeight > 20) selectedImg.style.height = `${newHeight}px`;
+      
+      // Also update attributes for better email client compatibility
+      if (newWidth > 20) selectedImg.setAttribute('width', Math.round(newWidth).toString());
+      if (newHeight > 20) selectedImg.setAttribute('height', Math.round(newHeight).toString());
+
+      updateResizer();
+    };
+
+    const handleMouseUp = () => {
+      if (resizeState) {
+        setResizeState(null);
+        handleInput(); // Save state on mouse up
+      }
+    };
+
+    if (resizeState) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizeState, selectedImg, updateResizer]);
 
   const handleInput = () => {
     if (contentRef.current && onChange) {
@@ -866,7 +1006,14 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       {/* Editor Surface */}
       <div 
         className="ree-editor-area"
-        onClick={() => contentRef.current?.focus()}
+        onClick={(e) => {
+            if (e.target !== contentRef.current && (e.target as HTMLElement).tagName === 'IMG') {
+               setSelectedImg(e.target as HTMLImageElement);
+            }
+            if (e.target === contentRef.current) {
+                contentRef.current.focus();
+            }
+        }}
       >
         <div 
           ref={contentRef}
@@ -884,6 +1031,17 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
         {(!contentRef.current?.innerText && !contentRef.current?.innerHTML) && (
            <div className="ree-placeholder" style={{ top: paddings.top || 24, left: paddings.left || 24 }}>{placeholder}</div>
         )}
+
+        {/* Resizer Overlay */}
+        <div 
+           ref={resizerRef}
+           className={`ree-resizer ${selectedImg ? 'active' : ''}`}
+        >
+           <div className="ree-resize-handle ree-handle-nw" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} />
+           <div className="ree-resize-handle ree-handle-ne" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} />
+           <div className="ree-resize-handle ree-handle-sw" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} />
+           <div className="ree-resize-handle ree-handle-se" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} />
+        </div>
       </div>
     </div>
   );
