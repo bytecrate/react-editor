@@ -323,6 +323,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const variablesRef = useRef<HTMLDivElement>(null);
   const paddingPickerRef = useRef<HTMLDivElement>(null);
+  const imagePickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [activeFormats, setActiveFormats] = useState<string[]>([]);
@@ -336,6 +337,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const [activeColor, setActiveColor] = useState<string>('#000000');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showVariables, setShowVariables] = useState(false);
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
   // Initialize content and default padding
   useEffect(() => {
@@ -359,6 +361,9 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       }
       if (paddingPickerRef.current && !paddingPickerRef.current.contains(event.target as Node)) {
         setShowPaddingPicker(false);
+      }
+      if (imagePickerRef.current && !imagePickerRef.current.contains(event.target as Node)) {
+        setShowImagePicker(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -502,10 +507,17 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
     if (url) execCommand("createLink", url);
   };
 
-  const addImage = () => {
+  const handleImageUploadClick = () => {
+    setShowImagePicker(false);
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
+  };
+
+  const handleImageUrlClick = () => {
+    setShowImagePicker(false);
+    const url = prompt("Enter Image URL:");
+    if (url) execCommand("insertImage", url);
   };
 
   const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -544,7 +556,6 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       onMouseDown={(e) => {
         e.preventDefault();
         if (command === "createLink") addLink();
-        else if (command === "insertImage") addImage();
         else execCommand(command, value);
       }}
       className={`ree-btn ${isActive ? 'active' : ''}`}
@@ -796,7 +807,38 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
 
         <div className="ree-group" style={{ borderRight: 'none' }}>
           <ToolbarButton icon={LinkIcon} command="createLink" label="Link" />
-          <ToolbarButton icon={ImageIcon} command="insertImage" label="Image" />
+          
+          {/* Image Picker */}
+          <div className="ree-group ree-dropdown-container" ref={imagePickerRef} style={{ borderRight: 'none', marginRight: 0, paddingRight: 0 }}>
+             <button
+              type="button"
+              onClick={() => setShowImagePicker(!showImagePicker)}
+              className={`ree-btn ${showImagePicker ? 'active' : ''}`}
+              title="Insert Image"
+            >
+              <ImageIcon size={18} />
+            </button>
+            
+            {showImagePicker && (
+              <div className="ree-popup" style={{ width: '200px', padding: '4px' }}>
+                 <button
+                   type="button"
+                   className="ree-list-btn"
+                   onClick={handleImageUploadClick}
+                 >
+                   Upload from Device
+                 </button>
+                 <button
+                   type="button"
+                   className="ree-list-btn"
+                   onClick={handleImageUrlClick}
+                 >
+                   Insert via URL
+                 </button>
+              </div>
+            )}
+          </div>
+
           <ToolbarButton icon={Quote} command="formatBlock" value="BLOCKQUOTE" label="Quote" />
           <ToolbarButton icon={Eraser} command="removeFormat" label="Clear Formatting" />
         </div>
