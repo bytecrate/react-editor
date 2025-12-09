@@ -1,12 +1,23 @@
-name: Publish Minor
+name: Publish Package
 on:
   workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 jobs:
-  publish-minor:
+  publish:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,13 +33,11 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Bump version (minor)
-        run: npm version minor
+      - name: Bump version
+        run: npm version ${{ inputs.version_type }}
 
       - name: Publish to NPM
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance
 
       - name: Push changes
         run: git push origin HEAD --follow-tags
