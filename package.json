@@ -1,6 +1,6 @@
 {
   "name": "@bytecrate/react-editor",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A lightweight, dependency-free React editor.",
   "main": "index.tsx",
   "types": "index.tsx",
