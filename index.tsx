@@ -428,30 +428,42 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
     return () => window.removeEventListener('resize', updateResizer);
   }, [selectedImg, updateResizer]);
 
-  // Handle click outside dropdowns
+  // Handle click outside dropdowns and image selection logic
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+
+      // Dropdowns
+      if (colorPickerRef.current && !colorPickerRef.current.contains(target)) {
         setShowColorPicker(false);
       }
-      if (variablesRef.current && !variablesRef.current.contains(event.target as Node)) {
+      if (variablesRef.current && !variablesRef.current.contains(target)) {
         setShowVariables(false);
       }
-      if (paddingPickerRef.current && !paddingPickerRef.current.contains(event.target as Node)) {
+      if (paddingPickerRef.current && !paddingPickerRef.current.contains(target)) {
         setShowPaddingPicker(false);
       }
-      if (imagePickerRef.current && !imagePickerRef.current.contains(event.target as Node)) {
+      if (imagePickerRef.current && !imagePickerRef.current.contains(target)) {
         setShowImagePicker(false);
       }
       
-      // Deselect image if clicking outside image and outside resizer
-      if (selectedImg && contentRef.current?.contains(event.target as Node)) {
-        if (event.target !== selectedImg) {
-             setSelectedImg(null);
+      // Image Selection Logic
+      if (selectedImg) {
+        // If clicking on the resizer or its handles, keep selection
+        if (resizerRef.current && resizerRef.current.contains(target)) {
+          return;
         }
-      } else if (selectedImg && !contentRef.current?.contains(event.target as Node)) {
-        // Clicked totally outside editor
-         setSelectedImg(null);
+
+        // If clicking on the currently selected image, keep selection
+        if (target === selectedImg) {
+          return;
+        }
+        
+        // If clicking anywhere else, deselect
+        // Note: We might want to keep selection if clicking toolbar buttons, 
+        // but typically focus shifts or we want to apply format to text.
+        // For simplicity, any click outside image/resizer deselects it.
+        setSelectedImg(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -1007,10 +1019,11 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       <div 
         className="ree-editor-area"
         onClick={(e) => {
-            if (e.target !== contentRef.current && (e.target as HTMLElement).tagName === 'IMG') {
-               setSelectedImg(e.target as HTMLImageElement);
-            }
-            if (e.target === contentRef.current) {
+            const target = e.target as HTMLElement;
+            // Explicitly selecting image on click
+            if (target.tagName === 'IMG') {
+               setSelectedImg(target as HTMLImageElement);
+            } else if (target === contentRef.current) {
                 contentRef.current.focus();
             }
         }}
