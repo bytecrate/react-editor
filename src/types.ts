@@ -20,4 +20,33 @@ export interface EmailEditorProps {
    * If not provided, images will be converted to Base64.
    */
   onImageUpload?: (file: File) => Promise<string>;
+  toolbarConfig?: ToolbarConfig;
 }
+
+export type ToolbarItem =
+  | 'undo'
+  | 'redo'
+  | 'fontFamily'
+  | 'fontSize'
+  | 'padding'
+  | 'color'
+  | 'variables'
+  | 'h1'
+  | 'h2'
+  | 'p'
+  | 'bold'
+  | 'italic'
+  | 'underline'
+  | 'strikeThrough'
+  | 'justifyLeft'
+  | 'justifyCenter'
+  | 'justifyRight'
+  | 'justifyFull'
+  | 'unorderedList'
+  | 'orderedList'
+  | 'link'
+  | 'image'
+  | 'blockquote'
+  | 'removeFormat';
+
+export type ToolbarConfig = (ToolbarItem | ToolbarItem[])[];
