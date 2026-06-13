@@ -19,5 +19,8 @@
     "template"
   ],
   "author": "Dhairya",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^10.5.0"
+  }
 }
