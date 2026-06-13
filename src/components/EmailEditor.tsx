@@ -7,11 +7,25 @@ import {
   Type, Palette, Braces, Move, Plus, Minus
 } from "lucide-react";
 
-import { EmailEditorProps } from "../types";
+import { EmailEditorProps, ToolbarConfig, ToolbarItem } from "../types";
 import { FONT_FAMILIES, FONT_SIZES, PRESET_COLORS, DEFAULT_VARIABLES } from "../constants";
 import { EDITOR_STYLES } from "../styles";
 import { ToolbarButton } from "./ToolbarButton";
 import { useImageResizer } from "../hooks/useImageResizer";
+
+const DEFAULT_TOOLBAR: ToolbarConfig = [
+  ['undo', 'redo'],
+  ['fontFamily'],
+  ['fontSize'],
+  ['padding'],
+  ['color'],
+  ['variables'],
+  ['h1', 'h2', 'p'],
+  ['bold', 'italic', 'underline', 'strikeThrough'],
+  ['justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull'],
+  ['unorderedList', 'orderedList'],
+  ['link', 'image', 'blockquote', 'removeFormat']
+];
 
 export const EmailEditor: React.FC<EmailEditorProps> = ({
   initialValue = "",
@@ -21,7 +35,8 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   placeholder = "Start writing your email...",
   variables = DEFAULT_VARIABLES,
   defaultPadding = "24px",
-  onImageUpload
+  onImageUpload,
+  toolbarConfig = DEFAULT_TOOLBAR
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -263,29 +278,15 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
     }
   };
 
-  return (
-    <div className={`ree-container ${className}`} style={style}>
-      <style>{EDITOR_STYLES}</style>
-      
-      {/* Hidden File Input for Image Upload */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleImageSelection}
-        accept="image/*"
-        style={{ display: 'none' }}
-      />
-      
-      {/* Toolbar */}
-      <div className="ree-toolbar">
-        <div className="ree-group">
-          <ToolbarButton icon={Undo} onMouseDown={() => execCommand("undo")} label="Undo" />
-          <ToolbarButton icon={Redo} onMouseDown={() => execCommand("redo")} label="Redo" />
-        </div>
-        
-        {/* Font Family Selector */}
-        <div className="ree-group">
-          <div className="ree-select-wrapper">
+  const renderToolbarItem = (item: ToolbarItem) => {
+    switch (item) {
+      case 'undo':
+        return <ToolbarButton key="undo" icon={Undo} onMouseDown={() => execCommand("undo")} label="Undo" />;
+      case 'redo':
+        return <ToolbarButton key="redo" icon={Redo} onMouseDown={() => execCommand("redo")} label="Redo" />;
+      case 'fontFamily':
+        return (
+          <div key="fontFamily" className="ree-select-wrapper">
              <select
               className="ree-select"
               value={currentFont}
@@ -305,11 +306,10 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
               </svg>
             </div>
           </div>
-        </div>
-
-        {/* Font Size Selector */}
-        <div className="ree-group">
-          <div className="ree-select-wrapper">
+        );
+      case 'fontSize':
+        return (
+          <div key="fontSize" className="ree-select-wrapper">
              <select
               className="ree-select"
               value={currentFontSize}
@@ -329,185 +329,188 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
               </svg>
             </div>
           </div>
-        </div>
+        );
+      case 'padding':
+        return (
+          <div key="padding" className="ree-dropdown-container" ref={paddingPickerRef}>
+             <button
+              type="button"
+              onClick={() => setShowPaddingPicker(!showPaddingPicker)}
+              className={`ree-btn ${showPaddingPicker ? 'active' : ''}`}
+              title="Padding & Spacing"
+            >
+              <Move size={18} />
+            </button>
 
-        {/* Padding Selector Dropdown */}
-        <div className="ree-group ree-dropdown-container" ref={paddingPickerRef}>
-           <button
-            type="button"
-            onClick={() => setShowPaddingPicker(!showPaddingPicker)}
-            className={`ree-btn ${showPaddingPicker ? 'active' : ''}`}
-            title="Padding & Spacing"
-          >
-            <Move size={18} />
-          </button>
-
-          {showPaddingPicker && (
-            <div className="ree-popup" style={{ width: '200px' }}>
-              <div className="ree-label">Padding (px)</div>
-              <div>
-                {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
-                  <div key={side} className="ree-pad-row">
-                    <span className="ree-pad-label">{side}</span>
-                    <div className="ree-pad-ctrl">
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                           e.preventDefault(); 
-                           updatePadding(side, Math.max(0, paddings[side] - 1));
-                        }}
-                        className="ree-pad-btn"
-                        title="Decrease"
-                      >
-                        <Minus size={10} />
-                      </button>
-                      <span className="ree-pad-val">
-                        {paddings[side]}
-                      </span>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                           e.preventDefault(); 
-                           updatePadding(side, paddings[side] + 1);
-                        }}
-                        className="ree-pad-btn"
-                        title="Increase"
-                      >
-                        <Plus size={10} />
-                      </button>
+            {showPaddingPicker && (
+              <div className="ree-popup" style={{ width: '200px' }}>
+                <div className="ree-label">Padding (px)</div>
+                <div>
+                  {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
+                    <div key={side} className="ree-pad-row">
+                      <span className="ree-pad-label">{side}</span>
+                      <div className="ree-pad-ctrl">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                             e.preventDefault(); 
+                             updatePadding(side, Math.max(0, paddings[side] - 1));
+                          }}
+                          className="ree-pad-btn"
+                          title="Decrease"
+                        >
+                          <Minus size={10} />
+                        </button>
+                        <span className="ree-pad-val">
+                          {paddings[side]}
+                        </span>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                             e.preventDefault(); 
+                             updatePadding(side, paddings[side] + 1);
+                          }}
+                          className="ree-pad-btn"
+                          title="Increase"
+                        >
+                          <Plus size={10} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Text Color Picker */}
-        <div className="ree-group ree-dropdown-container" ref={colorPickerRef}>
-          <button
-            type="button"
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            className={`ree-btn ${showColorPicker ? 'active' : ''}`}
-            title="Text Color"
-          >
-            <Palette 
-              size={18} 
-              style={{ 
-                color: activeColor && activeColor !== 'rgb(0, 0, 0)' && activeColor !== '#000000' 
-                  ? activeColor 
-                  : 'inherit' 
-              }} 
-            />
-          </button>
-          
-          {showColorPicker && (
-            <div className="ree-popup" style={{ width: '220px' }}>
-              <div className="ree-label">Presets</div>
-              <div className="ree-grid">
-                {PRESET_COLORS.map(color => (
-                  <button
-                    key={color}
-                    type="button"
-                    className="ree-color-swatch"
-                    style={{ backgroundColor: color }}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      execCommand('foreColor', color);
-                      setShowColorPicker(false);
-                    }}
-                    title={color}
-                  />
-                ))}
-              </div>
-              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '8px' }}>
-                 <div className="ree-label">Custom</div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="color"
-                    className="ree-color-input"
-                    onChange={(e) => {
-                      execCommand('foreColor', e.target.value);
-                      setShowColorPicker(false);
-                    }}
-                    title="Choose custom color"
-                  />
+                  ))}
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        );
+      case 'color':
+        return (
+          <div key="color" className="ree-dropdown-container" ref={colorPickerRef}>
+            <button
+              type="button"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className={`ree-btn ${showColorPicker ? 'active' : ''}`}
+              title="Text Color"
+            >
+              <Palette 
+                size={18} 
+                style={{ 
+                  color: activeColor && activeColor !== 'rgb(0, 0, 0)' && activeColor !== '#000000' 
+                    ? activeColor 
+                    : 'inherit' 
+                }} 
+              />
+            </button>
+            
+            {showColorPicker && (
+              <div className="ree-popup" style={{ width: '220px' }}>
+                <div className="ree-label">Presets</div>
+                <div className="ree-grid">
+                  {PRESET_COLORS.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      className="ree-color-swatch"
+                      style={{ backgroundColor: color }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        execCommand('foreColor', color);
+                        setShowColorPicker(false);
+                      }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '8px' }}>
+                   <div className="ree-label">Custom</div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="color"
+                      className="ree-color-input"
+                      onChange={(e) => {
+                        execCommand('foreColor', e.target.value);
+                        setShowColorPicker(false);
+                      }}
+                      title="Choose custom color"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      case 'variables':
+        return (
+          <div key="variables" className="ree-dropdown-container" ref={variablesRef}>
+            <button
+              type="button"
+              onClick={() => setShowVariables(!showVariables)}
+              className={`ree-btn ${showVariables ? 'active' : ''}`}
+              title="Insert Variable"
+            >
+              <Braces size={18} />
+            </button>
 
-        {/* Variables Picker */}
-        <div className="ree-group ree-dropdown-container" ref={variablesRef}>
-          <button
-            type="button"
-            onClick={() => setShowVariables(!showVariables)}
-            className={`ree-btn ${showVariables ? 'active' : ''}`}
-            title="Insert Variable"
-          >
-            <Braces size={18} />
-          </button>
-
-          {showVariables && (
-            <div className="ree-popup" style={{ width: '200px', padding: '0' }}>
-               <div className="ree-label" style={{ padding: '8px 12px', borderBottom: '1px solid #e5e7eb', margin: 0 }}>
-                 Insert Variable
-               </div>
-               <div style={{ maxHeight: '240px', overflowY: 'auto', padding: '4px' }}>
-                 {variables.length > 0 ? (
-                   variables.map((variable) => (
-                     <button
-                       key={variable.value}
-                       className="ree-list-btn"
-                       onMouseDown={(e) => {
-                         e.preventDefault();
-                         insertVariable(variable.value);
-                       }}
-                     >
-                       {variable.label}
-                     </button>
-                   ))
-                 ) : (
-                   <div style={{ padding: '8px 12px', fontSize: '14px', color: '#9ca3af', fontStyle: 'italic' }}>
-                     No variables available
-                   </div>
-                 )}
-               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="ree-group">
-          <ToolbarButton icon={Heading1} onMouseDown={() => execCommand("formatBlock", "H1")} label="Heading 1" />
-          <ToolbarButton icon={Heading2} onMouseDown={() => execCommand("formatBlock", "H2")} label="Heading 2" />
-          <ToolbarButton icon={Type} onMouseDown={() => execCommand("formatBlock", "P")} label="Paragraph" />
-        </div>
-
-        <div className="ree-group">
-          <ToolbarButton icon={Bold} onMouseDown={() => execCommand("bold")} isActive={activeFormats.includes('bold')} label="Bold" />
-          <ToolbarButton icon={Italic} onMouseDown={() => execCommand("italic")} isActive={activeFormats.includes('italic')} label="Italic" />
-          <ToolbarButton icon={Underline} onMouseDown={() => execCommand("underline")} isActive={activeFormats.includes('underline')} label="Underline" />
-          <ToolbarButton icon={Strikethrough} onMouseDown={() => execCommand("strikeThrough")} isActive={activeFormats.includes('strikeThrough')} label="Strikethrough" />
-        </div>
-
-        <div className="ree-group">
-          <ToolbarButton icon={AlignLeft} onMouseDown={() => execCommand("justifyLeft")} isActive={activeFormats.includes('justifyLeft')} label="Align Left" />
-          <ToolbarButton icon={AlignCenter} onMouseDown={() => execCommand("justifyCenter")} isActive={activeFormats.includes('justifyCenter')} label="Align Center" />
-          <ToolbarButton icon={AlignRight} onMouseDown={() => execCommand("justifyRight")} isActive={activeFormats.includes('justifyRight')} label="Align Right" />
-          <ToolbarButton icon={AlignJustify} onMouseDown={() => execCommand("justifyFull")} isActive={activeFormats.includes('justifyFull')} label="Justify" />
-        </div>
-
-        <div className="ree-group">
-          <ToolbarButton icon={List} onMouseDown={() => execCommand("insertUnorderedList")} isActive={activeFormats.includes('insertUnorderedList')} label="Bullet List" />
-          <ToolbarButton icon={ListOrdered} onMouseDown={() => execCommand("insertOrderedList")} isActive={activeFormats.includes('insertOrderedList')} label="Ordered List" />
-        </div>
-
-        <div className="ree-group" style={{ borderRight: 'none' }}>
-          <ToolbarButton icon={LinkIcon} onMouseDown={() => addLink()} label="Link" />
-          
-          {/* Image Picker */}
-          <div className="ree-group ree-dropdown-container" ref={imagePickerRef} style={{ borderRight: 'none', marginRight: 0, paddingRight: 0 }}>
+            {showVariables && (
+              <div className="ree-popup" style={{ width: '200px', padding: '0' }}>
+                 <div className="ree-label" style={{ padding: '8px 12px', borderBottom: '1px solid #e5e7eb', margin: 0 }}>
+                   Insert Variable
+                 </div>
+                 <div style={{ maxHeight: '240px', overflowY: 'auto', padding: '4px' }}>
+                   {variables.length > 0 ? (
+                     variables.map((variable) => (
+                       <button
+                         key={variable.value}
+                         className="ree-list-btn"
+                         onMouseDown={(e) => {
+                           e.preventDefault();
+                           insertVariable(variable.value);
+                         }}
+                       >
+                         {variable.label}
+                       </button>
+                     ))
+                   ) : (
+                     <div style={{ padding: '8px 12px', fontSize: '14px', color: '#9ca3af', fontStyle: 'italic' }}>
+                       No variables available
+                     </div>
+                   )}
+                 </div>
+              </div>
+            )}
+          </div>
+        );
+      case 'h1':
+        return <ToolbarButton key="h1" icon={Heading1} onMouseDown={() => execCommand("formatBlock", "H1")} label="Heading 1" />;
+      case 'h2':
+        return <ToolbarButton key="h2" icon={Heading2} onMouseDown={() => execCommand("formatBlock", "H2")} label="Heading 2" />;
+      case 'p':
+        return <ToolbarButton key="p" icon={Type} onMouseDown={() => execCommand("formatBlock", "P")} label="Paragraph" />;
+      case 'bold':
+        return <ToolbarButton key="bold" icon={Bold} onMouseDown={() => execCommand("bold")} isActive={activeFormats.includes('bold')} label="Bold" />;
+      case 'italic':
+        return <ToolbarButton key="italic" icon={Italic} onMouseDown={() => execCommand("italic")} isActive={activeFormats.includes('italic')} label="Italic" />;
+      case 'underline':
+        return <ToolbarButton key="underline" icon={Underline} onMouseDown={() => execCommand("underline")} isActive={activeFormats.includes('underline')} label="Underline" />;
+      case 'strikeThrough':
+        return <ToolbarButton key="strikeThrough" icon={Strikethrough} onMouseDown={() => execCommand("strikeThrough")} isActive={activeFormats.includes('strikeThrough')} label="Strikethrough" />;
+      case 'justifyLeft':
+        return <ToolbarButton key="justifyLeft" icon={AlignLeft} onMouseDown={() => execCommand("justifyLeft")} isActive={activeFormats.includes('justifyLeft')} label="Align Left" />;
+      case 'justifyCenter':
+        return <ToolbarButton key="justifyCenter" icon={AlignCenter} onMouseDown={() => execCommand("justifyCenter")} isActive={activeFormats.includes('justifyCenter')} label="Align Center" />;
+      case 'justifyRight':
+        return <ToolbarButton key="justifyRight" icon={AlignRight} onMouseDown={() => execCommand("justifyRight")} isActive={activeFormats.includes('justifyRight')} label="Align Right" />;
+      case 'justifyFull':
+        return <ToolbarButton key="justifyFull" icon={AlignJustify} onMouseDown={() => execCommand("justifyFull")} isActive={activeFormats.includes('justifyFull')} label="Justify" />;
+      case 'unorderedList':
+        return <ToolbarButton key="unorderedList" icon={List} onMouseDown={() => execCommand("insertUnorderedList")} isActive={activeFormats.includes('insertUnorderedList')} label="Bullet List" />;
+      case 'orderedList':
+        return <ToolbarButton key="orderedList" icon={ListOrdered} onMouseDown={() => execCommand("insertOrderedList")} isActive={activeFormats.includes('insertOrderedList')} label="Ordered List" />;
+      case 'link':
+        return <ToolbarButton key="link" icon={LinkIcon} onMouseDown={() => addLink()} label="Link" />;
+      case 'image':
+        return (
+          <div key="image" className="ree-dropdown-container" ref={imagePickerRef}>
              <button
               type="button"
               onClick={() => setShowImagePicker(!showImagePicker)}
@@ -536,10 +539,51 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
               </div>
             )}
           </div>
+        );
+      case 'blockquote':
+        return <ToolbarButton key="blockquote" icon={Quote} onMouseDown={() => execCommand("formatBlock", "BLOCKQUOTE")} label="Quote" />;
+      case 'removeFormat':
+        return <ToolbarButton key="removeFormat" icon={Eraser} onMouseDown={() => execCommand("removeFormat")} label="Clear Formatting" />;
+      default:
+        return null;
+    }
+  };
 
-          <ToolbarButton icon={Quote} onMouseDown={() => execCommand("formatBlock", "BLOCKQUOTE")} label="Quote" />
-          <ToolbarButton icon={Eraser} onMouseDown={() => execCommand("removeFormat")} label="Clear Formatting" />
-        </div>
+  const normalizedConfig = toolbarConfig.map((group) => {
+    if (Array.isArray(group)) {
+      return group;
+    }
+    return [group];
+  });
+
+  return (
+    <div className={`ree-container ${className}`} style={style}>
+      <style>{EDITOR_STYLES}</style>
+      
+      {/* Hidden File Input for Image Upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageSelection}
+        accept="image/*"
+        style={{ display: 'none' }}
+      />
+      
+      {/* Toolbar */}
+      <div className="ree-toolbar">
+        {normalizedConfig.map((group, groupIdx) => {
+          const renderedItems = group
+            .map(item => renderToolbarItem(item))
+            .filter(item => item !== null);
+
+          if (renderedItems.length === 0) return null;
+
+          return (
+            <div key={groupIdx} className="ree-group">
+              {renderedItems}
+            </div>
+          );
+        })}
       </div>
 
       {/* Editor Surface */}

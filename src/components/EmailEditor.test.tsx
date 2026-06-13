@@ -53,4 +53,17 @@ describe('EmailEditor', () => {
     fireEvent.mouseDown(boldBtn);
     expect(document.execCommand).toHaveBeenCalledWith('bold', false, undefined);
   });
+
+  it('renders only requested toolbar buttons when custom toolbarConfig is provided', () => {
+    // Render only Bold and Italic buttons
+    render(<EmailEditor toolbarConfig={[['bold', 'italic']]} />);
+    
+    // Bold and Italic should be visible
+    expect(screen.queryByTitle('Bold')).not.toBeNull();
+    expect(screen.queryByTitle('Italic')).not.toBeNull();
+
+    // Other buttons (like Undo or Redo) should NOT be rendered
+    expect(screen.queryByTitle('Undo')).toBeNull();
+    expect(screen.queryByTitle('Redo')).toBeNull();
+  });
 });
