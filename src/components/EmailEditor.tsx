@@ -195,17 +195,23 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   };
 
   const execFontSize = (size: string) => {
+    if (!contentRef.current) return;
+
+    // Track any pre-existing font tags with size="7" to avoid modifying them
+    const preExisting = new Set(contentRef.current.querySelectorAll('font[size="7"]'));
+
     document.execCommand('fontSize', false, '7');
-    if (contentRef.current) {
-        const fontElements = contentRef.current.querySelectorAll('font[size="7"]');
-        fontElements.forEach(el => {
-            el.removeAttribute('size');
-            (el as HTMLElement).style.fontSize = size;
-        });
-    }
-    if (contentRef.current) {
-      contentRef.current.focus();
-    }
+
+    // Query current font tags and filter for only the newly inserted ones
+    const currentFonts = contentRef.current.querySelectorAll('font[size="7"]');
+    currentFonts.forEach(el => {
+      if (!preExisting.has(el)) {
+        el.removeAttribute('size');
+        (el as HTMLElement).style.fontSize = size;
+      }
+    });
+
+    contentRef.current.focus();
     handleInput();
     updateActiveFormats();
   };
