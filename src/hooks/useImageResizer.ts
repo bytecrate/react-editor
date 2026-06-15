@@ -12,6 +12,7 @@ export function useImageResizer(
     x: number;
     y: number;
     dir: string;
+    aspectRatio: number;
   } | null>(null);
 
   // Update Resizer Position
@@ -68,12 +69,16 @@ export function useImageResizer(
     e.stopPropagation();
     if (!selectedImg) return;
     
+    const w = selectedImg.offsetWidth;
+    const h = selectedImg.offsetHeight;
+    
     setResizeState({
-      w: selectedImg.offsetWidth,
-      h: selectedImg.offsetHeight,
+      w,
+      h,
       x: e.clientX,
       y: e.clientY,
-      dir
+      dir,
+      aspectRatio: h > 0 ? w / h : 1
     });
   };
 
@@ -87,20 +92,28 @@ export function useImageResizer(
       let newWidth = resizeState.w;
       let newHeight = resizeState.h;
 
-      if (resizeState.dir.includes('e')) newWidth += deltaX;
-      if (resizeState.dir.includes('w')) newWidth -= deltaX;
-      if (resizeState.dir.includes('s')) newHeight += deltaY;
-      if (resizeState.dir.includes('n')) newHeight -= deltaY;
+      // Determine which axis movement is dominant to guide the aspect-locked resizing
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (resizeState.dir.includes('e')) newWidth += deltaX;
+        if (resizeState.dir.includes('w')) newWidth -= deltaX;
+        newHeight = Math.round(newWidth / resizeState.aspectRatio);
+      } else {
+        if (resizeState.dir.includes('s')) newHeight += deltaY;
+        if (resizeState.dir.includes('n')) newHeight -= deltaY;
+        newWidth = Math.round(newHeight * resizeState.aspectRatio);
+      }
 
-      // Minimum constraint
-      if (newWidth > 20) selectedImg.style.width = `${newWidth}px`;
-      if (newHeight > 20) selectedImg.style.height = `${newHeight}px`;
-      
-      // Also update attributes for better email client compatibility
-      if (newWidth > 20) selectedImg.setAttribute('width', Math.round(newWidth).toString());
-      if (newHeight > 20) selectedImg.setAttribute('height', Math.round(newHeight).toString());
-
-      updateResizer();
+      // Enforce minimum size constraint on BOTH dimensions
+      if (newWidth > 20 && newHeight > 20) {
+        selectedImg.style.width = `${newWidth}px`;
+        selectedImg.style.height = `${newHeight}px`;
+        
+        // Also update attributes for better email client compatibility
+        selectedImg.setAttribute('width', Math.round(newWidth).toString());
+        selectedImg.setAttribute('height', Math.round(newHeight).toString());
+        
+        updateResizer();
+      }
     };
 
     const handleMouseUp = () => {
