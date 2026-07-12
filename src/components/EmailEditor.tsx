@@ -43,6 +43,8 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const variablesRef = useRef<HTMLDivElement>(null);
   const paddingPickerRef = useRef<HTMLDivElement>(null);
   const imagePickerRef = useRef<HTMLDivElement>(null);
+  const linkPickerRef = useRef<HTMLDivElement>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resizerRef = useRef<HTMLDivElement>(null);
   
@@ -58,6 +60,9 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showVariables, setShowVariables] = useState(false);
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [isEditingLink, setIsEditingLink] = useState(false);
 
   // Hook up useImageResizer
   const { selectedImg, setSelectedImg, handleResizeMouseDown, updateResizer } = useImageResizer(
@@ -93,6 +98,10 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       }
       if (imagePickerRef.current && !imagePickerRef.current.contains(event.target as Node)) {
         setShowImagePicker(false);
+      }
+      if (linkPickerRef.current && !linkPickerRef.current.contains(event.target as Node)) {
+        setShowLinkPicker(false);
+        setIsEditingLink(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -143,6 +152,23 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
     commands.forEach(cmd => {
       if (document.queryCommandState(cmd)) formats.push(cmd);
     });
+
+    // Highlight link control when caret is inside an <a>
+    if (document.queryCommandState('createLink')) {
+      formats.push('createLink');
+    } else {
+      // Fallback: walk ancestors (queryCommandState is unreliable for links in some engines)
+      const selection = window.getSelection();
+      let node: Node | null = selection?.anchorNode ?? null;
+      if (node?.nodeType === Node.TEXT_NODE) node = node.parentNode;
+      while (node && node !== contentRef.current) {
+        if (node instanceof HTMLAnchorElement) {
+          formats.push('createLink');
+          break;
+        }
+        node = node.parentNode;
+      }
+    }
     
     setActiveFormats(formats);
 
@@ -237,9 +263,148 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
     setShowVariables(false);
   };
 
-  const addLink = () => {
-    const url = prompt("Enter URL:");
-    if (url) execCommand("createLink", url);
+  const saveSelection = () => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
+    } else {
+      savedSelectionRef.current = null;
+    }
+  };
+
+  const restoreSelection = () => {
+    const range = savedSelectionRef.current;
+    if (!range) return;
+    const selection = window.getSelection();
+    if (!selection) return;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    if (contentRef.current) {
+      contentRef.current.focus();
+    }
+  };
+
+  /** Walk from the caret/selection up to the editor root for an enclosing <a>. */
+  const getSelectedLink = (): HTMLAnchorElement | null => {
+    const selection = window.getSelection();
+    if (!selection || !selection.anchorNode || !contentRef.current) return null;
+
+    let node: Node | null = selection.anchorNode;
+    if (node.nodeType === Node.TEXT_NODE) {
+      node = node.parentNode;
+    }
+
+    while (node && node !== contentRef.current) {
+      if (node instanceof HTMLAnchorElement) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+
+    // Also check the saved range (popup focus may have cleared live selection)
+    const saved = savedSelectionRef.current;
+    if (saved) {
+      let savedNode: Node | null = saved.commonAncestorContainer;
+      if (savedNode.nodeType === Node.TEXT_NODE) {
+        savedNode = savedNode.parentNode;
+      }
+      while (savedNode && savedNode !== contentRef.current) {
+        if (savedNode instanceof HTMLAnchorElement) {
+          return savedNode;
+        }
+        savedNode = savedNode.parentNode;
+      }
+    }
+
+    return null;
+  };
+
+  const openLinkPicker = () => {
+    if (showLinkPicker) {
+      setShowLinkPicker(false);
+      setIsEditingLink(false);
+      return;
+    }
+
+    // Capture selection before React re-render / focus moves into the popup
+    saveSelection();
+    const existing = getSelectedLink();
+    setLinkUrl(existing?.getAttribute('href') ?? '');
+    setIsEditingLink(Boolean(existing));
+    setShowLinkPicker(true);
+    setShowImagePicker(false);
+    setShowVariables(false);
+    setShowColorPicker(false);
+    setShowPaddingPicker(false);
+  };
+
+  const applyLink = (urlOverride?: string) => {
+    const url = (urlOverride ?? linkUrl).trim();
+    restoreSelection();
+    const existing = getSelectedLink();
+
+    if (!url) {
+      if (existing) {
+        unwrapLink(existing);
+        if (contentRef.current) {
+          contentRef.current.focus();
+        }
+        handleInput();
+        updateActiveFormats();
+      }
+      setShowLinkPicker(false);
+      setLinkUrl('');
+      setIsEditingLink(false);
+      return;
+    }
+
+    if (existing) {
+      // Edit path: update the existing anchor so merge tags and non-URL hrefs are preserved
+      existing.setAttribute('href', url);
+      if (contentRef.current) {
+        contentRef.current.focus();
+      }
+      handleInput();
+      updateActiveFormats();
+    } else {
+      execCommand('createLink', url);
+    }
+
+    setShowLinkPicker(false);
+    setLinkUrl('');
+    setIsEditingLink(false);
+  };
+
+  const unwrapLink = (anchor: HTMLAnchorElement) => {
+    const parent = anchor.parentNode;
+    if (!parent) return;
+    while (anchor.firstChild) {
+      parent.insertBefore(anchor.firstChild, anchor);
+    }
+    parent.removeChild(anchor);
+    // Normalize adjacent text nodes so the editor content stays clean
+    parent.normalize();
+  };
+
+  const removeLink = () => {
+    restoreSelection();
+    const existing = getSelectedLink();
+    if (existing) {
+      unwrapLink(existing);
+      if (contentRef.current) {
+        contentRef.current.focus();
+      }
+      handleInput();
+      updateActiveFormats();
+    }
+    setShowLinkPicker(false);
+    setLinkUrl('');
+    setIsEditingLink(false);
+  };
+
+  const applyLinkVariable = (value: string) => {
+    setLinkUrl(value);
+    applyLink(value);
   };
 
   const handleImageUploadClick = () => {
@@ -513,7 +678,126 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       case 'orderedList':
         return <ToolbarButton key="orderedList" icon={ListOrdered} onMouseDown={() => execCommand("insertOrderedList")} isActive={activeFormats.includes('insertOrderedList')} label="Ordered List" />;
       case 'link':
-        return <ToolbarButton key="link" icon={LinkIcon} onMouseDown={() => addLink()} label="Link" />;
+        return (
+          <div key="link" className="ree-dropdown-container" ref={linkPickerRef}>
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                openLinkPicker();
+              }}
+              className={`ree-btn ${showLinkPicker || activeFormats.includes('createLink') ? 'active' : ''}`}
+              title={activeFormats.includes('createLink') || isEditingLink ? 'Edit Link' : 'Link'}
+            >
+              <LinkIcon size={18} />
+            </button>
+
+            {showLinkPicker && (
+              <div className="ree-popup" style={{ width: '260px', padding: '0' }}>
+                <div
+                  className="ree-label"
+                  style={{ padding: '8px 12px', borderBottom: '1px solid #e5e7eb', margin: 0 }}
+                >
+                  {isEditingLink ? 'Edit Link' : 'Insert Link'}
+                </div>
+                <div style={{ padding: '10px 12px' }}>
+                  <label
+                    className="ree-label"
+                    style={{ display: 'block', marginBottom: 6, textTransform: 'none', letterSpacing: 0 }}
+                  >
+                    URL or variable
+                  </label>
+                  <input
+                    type="text"
+                    className="ree-link-input"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyLink();
+                      }
+                      if (e.key === 'Escape') {
+                        setShowLinkPicker(false);
+                      }
+                    }}
+                    placeholder="https://… or {{unsubscribe}}"
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <button
+                      type="button"
+                      className="ree-list-btn"
+                      style={{
+                        flex: 1,
+                        textAlign: 'center',
+                        backgroundColor: '#2563eb',
+                        color: '#fff',
+                        fontWeight: 500,
+                      }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        applyLink();
+                      }}
+                    >
+                      {isEditingLink ? 'Update' : 'Apply'}
+                    </button>
+                    {isEditingLink && (
+                      <button
+                        type="button"
+                        className="ree-list-btn"
+                        style={{ flex: 1, textAlign: 'center' }}
+                        title="Unlink"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          removeLink();
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {variables.length > 0 && (
+                  <div style={{ borderTop: '1px solid #e5e7eb' }}>
+                    <div
+                      className="ree-label"
+                      style={{ padding: '8px 12px 4px', margin: 0 }}
+                    >
+                      Use variable as URL
+                    </div>
+                    <div style={{ maxHeight: 160, overflowY: 'auto', padding: '0 4px 4px' }}>
+                      {variables.map((variable) => (
+                        <button
+                          key={variable.value}
+                          type="button"
+                          className="ree-list-btn"
+                          title={variable.value}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            applyLinkVariable(variable.value);
+                          }}
+                        >
+                          {variable.label}
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: 11,
+                              color: '#9ca3af',
+                              marginTop: 2,
+                            }}
+                          >
+                            {variable.value}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
       case 'image':
         return (
           <div key="image" className="ree-dropdown-container" ref={imagePickerRef}>

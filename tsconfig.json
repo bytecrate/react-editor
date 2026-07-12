@@ -21,6 +21,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@bytecrate/react-editor": [
+        "./index.tsx"
       ]
     },
     "allowImportingTsExtensions": true,

@@ -155,6 +155,23 @@ export const EDITOR_STYLES = `
     cursor: pointer;
   }
 
+  .ree-link-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    font-size: 14px;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    outline: none;
+    background: #fff;
+  }
+
+  .ree-link-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  }
+
   .ree-list-btn {
     width: 100%;
     text-align: left;

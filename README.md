@@ -103,6 +103,23 @@ const myVariables = [
 | `style` | `React.CSSProperties` | `-` | Inline styles for the outer editor container. |
 | `className` | `string` | `""` | CSS class names for the outer editor container. |
 
+## Development
+
+Run the in-repo playground to exercise the editor without installing it into another project:
+
+```bash
+npm install
+npm run dev   # http://localhost:3000
+```
+
+Other local checks:
+
+```bash
+npm test
+npm run lint
+npm run typecheck
+```
+
 ## Dependencies
 
 This package relies on [lucide-react](https://lucide.dev/) for its icons, which is installed automatically as a dependency.
