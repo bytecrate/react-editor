@@ -12,6 +12,7 @@ import { FONT_FAMILIES, FONT_SIZES, PRESET_COLORS, DEFAULT_VARIABLES } from "../
 import { EDITOR_STYLES } from "../styles";
 import { ToolbarButton } from "./ToolbarButton";
 import { useImageResizer } from "../hooks/useImageResizer";
+import { sanitizeEmailHtml, sanitizeUrl } from "../lib/sanitizeHtml";
 
 const DEFAULT_TOOLBAR: ToolbarConfig = [
   ['undo', 'redo'],
@@ -71,6 +72,8 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     defaultPadding = "24px",
     onImageUpload,
     toolbarConfig = DEFAULT_TOOLBAR,
+    sanitize = true,
+    onPasteHtml,
   },
   ref
 ) {
@@ -119,33 +122,39 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     }
   );
 
+  /** Sanitize external HTML when the sanitize prop is enabled (default). */
+  const prepareHtml = useCallback(
+    (html: string) => (sanitize === false ? html : sanitizeEmailHtml(html)),
+    [sanitize]
+  );
+
   const applyHtmlToDom = useCallback((html: string) => {
     if (!contentRef.current) return;
-    contentRef.current.innerHTML = html;
+    contentRef.current.innerHTML = prepareHtml(html);
     setIsEmpty(isEditorDomEmpty(contentRef.current));
     // Wholesale HTML replace detaches prior nodes — drop resizer + saved ranges
     setSelectedImg(null);
     savedSelectionRef.current = null;
-  }, [setSelectedImg]);
+  }, [setSelectedImg, prepareHtml]);
 
   // Mount seed: controlled uses value; uncontrolled uses initialValue once
   // Intentionally empty deps — uncontrolled seed is mount-only; controlled updates use the value effect below
   useEffect(() => {
     if (!contentRef.current) return;
     const seed = isControlled ? (value ?? "") : (initialValue ?? "");
-    contentRef.current.innerHTML = seed;
+    contentRef.current.innerHTML = prepareHtml(seed);
     contentRef.current.style.padding = defaultPadding;
     setIsEmpty(isEditorDomEmpty(contentRef.current));
   }, []);
 
-  // Controlled sync: write when value differs from DOM (avoids caret jump on equal strings)
+  // Controlled sync: write when sanitized value differs from DOM (avoids caret jump)
   useEffect(() => {
     if (!isControlled || !contentRef.current) return;
-    const next = value ?? "";
+    const next = prepareHtml(value ?? "");
     if (next !== contentRef.current.innerHTML) {
-      applyHtmlToDom(next);
+      applyHtmlToDom(value ?? "");
     }
-  }, [value, isControlled, applyHtmlToDom]);
+  }, [value, isControlled, applyHtmlToDom, prepareHtml]);
 
   // Handle click outside dropdowns
   useEffect(() => {
@@ -425,11 +434,11 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
   };
 
   const applyLink = (urlOverride?: string) => {
-    const url = (urlOverride ?? linkUrl).trim();
+    const raw = (urlOverride ?? linkUrl).trim();
     restoreSelection();
     const existing = getSelectedLink();
 
-    if (!url) {
+    if (!raw) {
       if (existing) {
         unwrapLink(existing);
         if (contentRef.current) {
@@ -441,6 +450,13 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
       setShowLinkPicker(false);
       setLinkUrl('');
       setIsEditingLink(false);
+      return;
+    }
+
+    // Block dangerous schemes when sanitization is on (default)
+    const url = sanitize === false ? raw : sanitizeUrl(raw);
+    if (url === null) {
+      // Reject javascript:/etc. without modifying the selection
       return;
     }
 
@@ -500,10 +516,17 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     }
   };
 
+  const insertImageIfSafe = (url: string) => {
+    const safe = sanitize === false ? url.trim() : sanitizeUrl(url);
+    if (safe) {
+      execCommand("insertImage", safe);
+    }
+  };
+
   const handleImageUrlClick = () => {
     setShowImagePicker(false);
     const url = prompt("Enter Image URL:");
-    if (url) execCommand("insertImage", url);
+    if (url) insertImageIfSafe(url);
   };
 
   const handleImageSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -513,7 +536,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
         try {
           const url = await onImageUpload(file);
           if (url) {
-            execCommand("insertImage", url);
+            insertImageIfSafe(url);
           }
         } catch (err) {
           console.error("Error uploading image:", err);
@@ -523,7 +546,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
         reader.onload = (event) => {
           const base64 = event.target?.result as string;
           if (base64) {
-            execCommand("insertImage", base64);
+            insertImageIfSafe(base64);
           }
         };
         reader.readAsDataURL(file);
@@ -533,6 +556,25 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (sanitize === false) {
+      // Explicit escape hatch: allow native browser paste
+      return;
+    }
+
+    const html = e.clipboardData?.getData("text/html");
+    const text = e.clipboardData?.getData("text/plain");
+    e.preventDefault();
+
+    if (html) {
+      const clean = onPasteHtml ? onPasteHtml(html) : sanitizeEmailHtml(html);
+      document.execCommand("insertHTML", false, clean);
+    } else if (text) {
+      document.execCommand("insertText", false, text);
+    }
+    handleInput();
   };
 
   const renderToolbarItem = (item: ToolbarItem) => {
@@ -981,6 +1023,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
           onInput={handleInput}
           onKeyUp={updateActiveFormats}
           onMouseUp={updateActiveFormats}
+          onPaste={handlePaste}
           style={{
             minHeight: '300px',
             fontFamily: 'Helvetica, Arial, sans-serif',
