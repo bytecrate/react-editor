@@ -22,6 +22,56 @@ describe('EmailEditor', () => {
     expect(contentArea).toBeDefined();
   });
 
+  it('hides the placeholder when initialValue has content', () => {
+    render(<EmailEditor initialValue="<p>Hello</p>" />);
+    expect(screen.getByText('Hello')).toBeDefined();
+    expect(screen.queryByText('Start writing your email...')).toBeNull();
+    expect(document.querySelector('.ree-placeholder')).toBeNull();
+  });
+
+  it('shows the placeholder when the editor is empty', () => {
+    render(<EmailEditor />);
+    expect(screen.getByText('Start writing your email...')).toBeDefined();
+    expect(document.querySelector('.ree-placeholder')).not.toBeNull();
+  });
+
+  it('shows the placeholder after content is cleared', () => {
+    render(<EmailEditor initialValue="<p>x</p>" />);
+    expect(document.querySelector('.ree-placeholder')).toBeNull();
+
+    const contentEditable = document.querySelector('.ree-content') as HTMLElement;
+    expect(contentEditable).not.toBeNull();
+
+    contentEditable.innerHTML = '';
+    fireEvent.input(contentEditable);
+
+    expect(screen.getByText('Start writing your email...')).toBeDefined();
+    expect(document.querySelector('.ree-placeholder')).not.toBeNull();
+  });
+
+  it('shows the placeholder after clear leaves browser empty shells', () => {
+    render(<EmailEditor initialValue="<p>x</p>" />);
+    const contentEditable = document.querySelector('.ree-content') as HTMLElement;
+    expect(contentEditable).not.toBeNull();
+
+    // Typical post-delete markup from contenteditable (including Firefox _moz br)
+    contentEditable.innerHTML = '<p><br type="_moz"></p>';
+    fireEvent.input(contentEditable);
+
+    expect(document.querySelector('.ree-placeholder')).not.toBeNull();
+  });
+
+  it('hides the placeholder when the user types into an empty editor', () => {
+    render(<EmailEditor />);
+    expect(document.querySelector('.ree-placeholder')).not.toBeNull();
+
+    const contentEditable = document.querySelector('.ree-content') as HTMLElement;
+    contentEditable.innerHTML = '<p>typed</p>';
+    fireEvent.input(contentEditable);
+
+    expect(document.querySelector('.ree-placeholder')).toBeNull();
+  });
+
   it('fires the onChange callback when content is modified', () => {
     const handleChange = vi.fn();
     render(<EmailEditor onChange={handleChange} />);

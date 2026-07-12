@@ -27,6 +27,38 @@ const DEFAULT_TOOLBAR: ToolbarConfig = [
   ['link', 'image', 'blockquote', 'removeFormat']
 ];
 
+/** True when the contenteditable DOM has no meaningful text or contentful markup. */
+function isEditorDomEmpty(el: HTMLElement): boolean {
+  const text = (el.innerText || el.textContent || "").replace(/\u200B/g, "").trim();
+  if (text.length > 0) return false;
+
+  // Images / media / structural content count as non-empty even without text
+  if (el.querySelector("img, video, hr, table, iframe, object, embed, svg")) {
+    return false;
+  }
+
+  // Treat browser-default empty shells as empty (attrs ok: <br type="_moz">, styled empty <p>)
+  const html = (el.innerHTML || "")
+    .replace(/<br\b[^>]*>/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/<\/?(?:p|div|span|font|b|i|u|strong|em|a)\b[^>]*>/gi, "")
+    .trim();
+  return html.length === 0;
+}
+
+/**
+ * Resolve placeholder top/left from defaultPadding when it is a single px length
+ * (e.g. "24px"). Multi-value shorthand and non-px units fall back to 24.
+ */
+function placeholderInsetFromPadding(defaultPadding: string): number {
+  const trimmed = defaultPadding.trim();
+  // Only single-token px values are supported for placeholder offset
+  const match = /^([\d.]+)px$/i.exec(trimmed);
+  if (!match) return 24;
+  const n = parseFloat(match[1]);
+  return Number.isFinite(n) ? n : 24;
+}
+
 export const EmailEditor: React.FC<EmailEditorProps> = ({
   initialValue = "",
   onChange,
@@ -51,6 +83,9 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const [activeFormats, setActiveFormats] = useState<string[]>([]);
   const [currentFont, setCurrentFont] = useState<string>('Arial');
   const [currentFontSize, setCurrentFontSize] = useState<string>('16px');
+  // Drive placeholder from React state — refs do not trigger re-renders
+  const [isEmpty, setIsEmpty] = useState(() => !initialValue);
+  const placeholderInset = placeholderInsetFromPadding(defaultPadding);
   
   // Padding state for individual sides
   const [paddings, setPaddings] = useState({ top: 0, right: 0, bottom: 0, left: 0 });
@@ -81,6 +116,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       }
       // Apply default padding directly to DOM
       contentRef.current.style.padding = defaultPadding;
+      setIsEmpty(isEditorDomEmpty(contentRef.current));
     }
   }, []);
 
@@ -109,9 +145,11 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   }, []);
 
   const handleInput = () => {
-    if (contentRef.current && onChange) {
-      const html = contentRef.current.innerHTML;
-      onChange(html);
+    if (contentRef.current) {
+      if (onChange) {
+        onChange(contentRef.current.innerHTML);
+      }
+      setIsEmpty(isEditorDomEmpty(contentRef.current));
     }
     updateActiveFormats();
   };
@@ -901,8 +939,8 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
           }}
           suppressContentEditableWarning
         />
-        {(!contentRef.current?.innerText && !contentRef.current?.innerHTML) && (
-           <div className="ree-placeholder" style={{ top: paddings.top || 24, left: paddings.left || 24 }}>{placeholder}</div>
+        {isEmpty && (
+           <div className="ree-placeholder" style={{ top: placeholderInset, left: placeholderInset }}>{placeholder}</div>
         )}
 
         {/* Resizer Overlay */}
