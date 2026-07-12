@@ -34,16 +34,39 @@ export function useImageResizer(
   // Hook up scroll listener to update resizer
   useEffect(() => {
     const contentEl = contentRef.current;
-    if (contentEl) {
-      contentEl.addEventListener('scroll', updateResizer);
-      return () => contentEl.removeEventListener('scroll', updateResizer);
-    }
+    if (!contentEl) return;
+
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateResizer();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    contentEl.addEventListener('scroll', handleScroll);
+    return () => contentEl.removeEventListener('scroll', handleScroll);
   }, [contentRef, updateResizer]);
 
   useEffect(() => {
     updateResizer();
-    window.addEventListener('resize', updateResizer);
-    return () => window.removeEventListener('resize', updateResizer);
+
+    let ticking = false;
+    const handleResize = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateResizer();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [selectedImg, updateResizer]);
 
   // Handle click outside images (except on color/padding picker etc which are handled by their own hooks/effects)
