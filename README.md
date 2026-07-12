@@ -24,6 +24,8 @@ yarn add @bytecrate/react-editor
 
 ## Usage
 
+### Uncontrolled (seed once with `initialValue`)
+
 ```tsx
 import React, { useState } from 'react';
 import { EmailEditor } from '@bytecrate/react-editor';
@@ -49,6 +51,38 @@ const MyEmailApp = () => {
 };
 
 export default MyEmailApp;
+```
+
+### Controlled (`value` + `onChange`)
+
+Use `value` when the parent owns the HTML (template switchers, forms, load-from-API). The editor DOM updates when `value` changes and differs from the current content. Prefer not to rewrite `value` on every keystroke with transformed HTML that differs only in formatting — that can move the caret.
+
+```tsx
+const [html, setHtml] = useState('<p>Hello</p>');
+
+<EmailEditor value={html} onChange={setHtml} />
+
+// Reset without remounting:
+// setHtml(SAMPLE_HTML);
+```
+
+If both `value` and `initialValue` are passed, **`value` wins** after mount.
+
+### Imperative ref API
+
+```tsx
+import React, { useRef } from 'react';
+import { EmailEditor, type EmailEditorRef } from '@bytecrate/react-editor';
+
+const editorRef = useRef<EmailEditorRef>(null);
+
+<EmailEditor ref={editorRef} onChange={setHtml} />
+
+// editorRef.current?.focus()
+// editorRef.current?.getHTML()
+// editorRef.current?.setHTML('<p>Hi</p>')  // also calls onChange
+// editorRef.current?.clear()
+// editorRef.current?.getContentElement()
 ```
 
 ## Image Upload Handling
@@ -94,14 +128,25 @@ const myVariables = [
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `initialValue` | `string` | `""` | The initial HTML content of the editor. |
-| `onChange` | `(html: string) => void` | `-` | Callback fired whenever content changes. |
+| `initialValue` | `string` | `""` | Uncontrolled seed HTML applied on mount only. |
+| `value` | `string` | `-` | Controlled HTML. When set, DOM syncs when the string changes. |
+| `onChange` | `(html: string) => void` | `-` | Callback fired whenever content changes (including `ref.setHTML` / `clear`). |
 | `variables` | `Array<{ label: string, value: string }>` | `DEFAULT_VARIABLES` | Array of variables for the insert dropdown. |
 | `placeholder` | `string` | `"Start writing..."` | Placeholder text shown when empty. |
 | `defaultPadding` | `string` | `"24px"` | Default padding applied to the main container. |
 | `onImageUpload` | `(file: File) => Promise<string>` | `-` | Callback to handle custom image uploads (overrides Base64). |
 | `style` | `React.CSSProperties` | `-` | Inline styles for the outer editor container. |
 | `className` | `string` | `""` | CSS class names for the outer editor container. |
+
+### Ref methods (`EmailEditorRef`)
+
+| Method | Description |
+|--------|-------------|
+| `focus()` | Focus the contenteditable surface. |
+| `getHTML()` | Return current serialized HTML. |
+| `setHTML(html)` | Replace editor HTML and notify `onChange`. |
+| `clear()` | Clear content (equivalent to `setHTML("")`). |
+| `getContentElement()` | Return the contenteditable `HTMLDivElement`, or `null`. |
 
 ## Development
 

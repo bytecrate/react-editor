@@ -5,8 +5,34 @@ export interface Variable {
   value: string;
 }
 
+/** Imperative handle exposed via ref on EmailEditor. */
+export interface EmailEditorRef {
+  /** Focus the contenteditable surface */
+  focus: () => void;
+  /** Current serialized HTML */
+  getHTML: () => string;
+  /**
+   * Replace editor HTML. Updates the DOM and calls `onChange` when provided
+   * so uncontrolled parents stay consistent.
+   */
+  setHTML: (html: string) => void;
+  /** Clear content */
+  clear: () => void;
+  /** Underlying contenteditable element, if mounted */
+  getContentElement: () => HTMLDivElement | null;
+}
+
 export interface EmailEditorProps {
+  /**
+   * Uncontrolled initial HTML. Applied on mount (and ignored for later prop
+   * changes unless `value` is also used — prefer `value` for controlled mode).
+   */
   initialValue?: string;
+  /**
+   * Controlled HTML. When provided, the editor DOM is updated when `value`
+   * changes and differs from the current DOM HTML.
+   */
+  value?: string;
   onChange?: (html: string) => void;
   style?: React.CSSProperties;
   className?: string;
