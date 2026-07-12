@@ -32,7 +32,7 @@ export function LinkPicker({
   containerRef,
 }: LinkPickerProps) {
   return (
-    <div key="link" className="ree-dropdown-container" ref={containerRef}>
+    <div className="ree-dropdown-container" ref={containerRef}>
       <button
         type="button"
         onMouseDown={(e) => {

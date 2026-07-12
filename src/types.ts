@@ -88,3 +88,12 @@ export type ToolbarItem =
   | 'removeFormat';
 
 export type ToolbarConfig = (ToolbarItem | ToolbarItem[])[];
+
+export type PaddingSide = "top" | "right" | "bottom" | "left";
+
+export interface Paddings {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}

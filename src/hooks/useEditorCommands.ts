@@ -7,15 +7,7 @@ import {
   restoreSelection,
 } from "../lib/editorDom";
 import { sanitizeEmailHtml, sanitizeUrl } from "../lib/sanitizeHtml";
-
-export type PaddingSide = "top" | "right" | "bottom" | "left";
-
-export interface Paddings {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}
+import type { PaddingSide, Paddings } from "../types";
 
 export interface UseEditorCommandsOptions {
   contentRef: React.RefObject<HTMLDivElement | null>;

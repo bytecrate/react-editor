@@ -1,14 +1,8 @@
 import React from "react";
 import { Move, Plus, Minus } from "lucide-react";
+import type { PaddingSide, Paddings } from "../../../types";
 
-export type PaddingSide = "top" | "right" | "bottom" | "left";
-
-export interface Paddings {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}
+export type { PaddingSide, Paddings };
 
 export interface PaddingPickerProps {
   paddings: Paddings;
@@ -26,7 +20,7 @@ export function PaddingPicker({
   containerRef,
 }: PaddingPickerProps) {
   return (
-    <div key="padding" className="ree-dropdown-container" ref={containerRef}>
+    <div className="ree-dropdown-container" ref={containerRef}>
       <button
         type="button"
         onClick={onToggle}

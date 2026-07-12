@@ -18,7 +18,7 @@ export function ColorPicker({
   containerRef,
 }: ColorPickerProps) {
   return (
-    <div key="color" className="ree-dropdown-container" ref={containerRef}>
+    <div className="ree-dropdown-container" ref={containerRef}>
       <button
         type="button"
         onClick={onToggle}

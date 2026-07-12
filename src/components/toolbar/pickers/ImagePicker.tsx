@@ -17,7 +17,7 @@ export function ImagePicker({
   containerRef,
 }: ImagePickerProps) {
   return (
-    <div key="image" className="ree-dropdown-container" ref={containerRef}>
+    <div className="ree-dropdown-container" ref={containerRef}>
       <button
         type="button"
         onClick={onToggle}

@@ -7,12 +7,12 @@ import {
   Type,
 } from "lucide-react";
 
-import type { ToolbarConfig, ToolbarItem, Variable } from "../../types";
+import type { ToolbarConfig, ToolbarItem, Variable, Paddings, PaddingSide } from "../../types";
 import { FONT_FAMILIES, FONT_SIZES } from "../../constants";
 import { ToolbarButton } from "../ToolbarButton";
 import { VariablesPicker } from "./pickers/VariablesPicker";
 import { ColorPicker } from "./pickers/ColorPicker";
-import { PaddingPicker, type Paddings, type PaddingSide } from "./pickers/PaddingPicker";
+import { PaddingPicker } from "./pickers/PaddingPicker";
 import { ImagePicker } from "./pickers/ImagePicker";
 import { LinkPicker } from "./pickers/LinkPicker";
 

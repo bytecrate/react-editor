@@ -18,7 +18,7 @@ export function VariablesPicker({
   containerRef,
 }: VariablesPickerProps) {
   return (
-    <div key="variables" className="ree-dropdown-container" ref={containerRef}>
+    <div className="ree-dropdown-container" ref={containerRef}>
       <button
         type="button"
         onClick={onToggle}

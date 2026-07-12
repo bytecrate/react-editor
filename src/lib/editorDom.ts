@@ -58,29 +58,32 @@ export function getSelectedBlock(editorRoot: HTMLElement | null): HTMLElement | 
 
 /**
  * Walk from the caret/selection up to the editor root for an enclosing <a>.
- * Also checks a saved range (popup focus may have cleared live selection).
+ * Also checks a saved range when live selection exists but is not inside a link
+ * (e.g. focus moved into a popup while selection.anchorNode is still set).
  */
 export function getSelectedLink(
   editorRoot: HTMLElement | null,
   savedRange: Range | null = null
 ): HTMLAnchorElement | null {
   const selection = window.getSelection();
-  if (selection && selection.anchorNode && editorRoot) {
-    let node: Node | null = selection.anchorNode;
-    if (node.nodeType === Node.TEXT_NODE) {
-      node = node.parentNode;
-    }
+  // Match pre-extraction control flow: require live selection + editor root
+  // before consulting either the live walk or the saved-range fallback.
+  if (!selection || !selection.anchorNode || !editorRoot) return null;
 
-    while (node && node !== editorRoot) {
-      if (node instanceof HTMLAnchorElement) {
-        return node;
-      }
-      node = node.parentNode;
-    }
+  let node: Node | null = selection.anchorNode;
+  if (node.nodeType === Node.TEXT_NODE) {
+    node = node.parentNode;
   }
 
-  // Also check the saved range (popup focus may have cleared live selection)
-  if (savedRange && editorRoot) {
+  while (node && node !== editorRoot) {
+    if (node instanceof HTMLAnchorElement) {
+      return node;
+    }
+    node = node.parentNode;
+  }
+
+  // Also check the saved range (popup focus may leave selection outside the link)
+  if (savedRange) {
     let savedNode: Node | null = savedRange.commonAncestorContainer;
     if (savedNode.nodeType === Node.TEXT_NODE) {
       savedNode = savedNode.parentNode;
