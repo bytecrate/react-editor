@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect, useCallback, useImperativeHandle } 
 import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered, Link as LinkIcon, Image as ImageIcon,
+  List, ListOrdered,
   Heading1, Heading2, Quote, Undo, Redo, Eraser,
-  Type, Palette, Braces, Move, Plus, Minus
+  Type,
 } from "lucide-react";
 
 import { EmailEditorProps, EmailEditorRef, ToolbarConfig, ToolbarItem } from "../types";
-import { FONT_FAMILIES, FONT_SIZES, PRESET_COLORS, DEFAULT_VARIABLES } from "../constants";
+import { FONT_FAMILIES, FONT_SIZES, DEFAULT_VARIABLES } from "../constants";
 import { EDITOR_STYLES } from "../styles";
 import { ToolbarButton } from "./ToolbarButton";
 import { useImageResizer } from "../hooks/useImageResizer";
@@ -22,6 +22,11 @@ import {
   saveSelection,
   restoreSelection,
 } from "../lib/editorDom";
+import { VariablesPicker } from "./toolbar/pickers/VariablesPicker";
+import { ColorPicker } from "./toolbar/pickers/ColorPicker";
+import { PaddingPicker } from "./toolbar/pickers/PaddingPicker";
+import { ImagePicker } from "./toolbar/pickers/ImagePicker";
+import { LinkPicker } from "./toolbar/pickers/LinkPicker";
 
 const DEFAULT_TOOLBAR: ToolbarConfig = [
   ['undo', 'redo'],
@@ -525,153 +530,39 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
         );
       case 'padding':
         return (
-          <div key="padding" className="ree-dropdown-container" ref={paddingPickerRef}>
-             <button
-              type="button"
-              onClick={() => setShowPaddingPicker(!showPaddingPicker)}
-              className={`ree-btn ${showPaddingPicker ? 'active' : ''}`}
-              title="Padding & Spacing"
-            >
-              <Move size={18} />
-            </button>
-
-            {showPaddingPicker && (
-              <div className="ree-popup" style={{ width: '200px' }}>
-                <div className="ree-label">Padding (px)</div>
-                <div>
-                  {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
-                    <div key={side} className="ree-pad-row">
-                      <span className="ree-pad-label">{side}</span>
-                      <div className="ree-pad-ctrl">
-                        <button
-                          type="button"
-                          onMouseDown={(e) => {
-                             e.preventDefault(); 
-                             updatePadding(side, Math.max(0, paddings[side] - 1));
-                          }}
-                          className="ree-pad-btn"
-                          title="Decrease"
-                        >
-                          <Minus size={10} />
-                        </button>
-                        <span className="ree-pad-val">
-                          {paddings[side]}
-                        </span>
-                        <button
-                          type="button"
-                          onMouseDown={(e) => {
-                             e.preventDefault(); 
-                             updatePadding(side, paddings[side] + 1);
-                          }}
-                          className="ree-pad-btn"
-                          title="Increase"
-                        >
-                          <Plus size={10} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <PaddingPicker
+            key="padding"
+            paddings={paddings}
+            updatePadding={updatePadding}
+            show={showPaddingPicker}
+            onToggle={() => setShowPaddingPicker(!showPaddingPicker)}
+            containerRef={paddingPickerRef}
+          />
         );
       case 'color':
         return (
-          <div key="color" className="ree-dropdown-container" ref={colorPickerRef}>
-            <button
-              type="button"
-              onClick={() => setShowColorPicker(!showColorPicker)}
-              className={`ree-btn ${showColorPicker ? 'active' : ''}`}
-              title="Text Color"
-            >
-              <Palette 
-                size={18} 
-                style={{ 
-                  color: activeColor && activeColor !== 'rgb(0, 0, 0)' && activeColor !== '#000000' 
-                    ? activeColor 
-                    : 'inherit' 
-                }} 
-              />
-            </button>
-            
-            {showColorPicker && (
-              <div className="ree-popup" style={{ width: '220px' }}>
-                <div className="ree-label">Presets</div>
-                <div className="ree-grid">
-                  {PRESET_COLORS.map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      className="ree-color-swatch"
-                      style={{ backgroundColor: color }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        execCommand('foreColor', color);
-                        setShowColorPicker(false);
-                      }}
-                      title={color}
-                    />
-                  ))}
-                </div>
-                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '8px' }}>
-                   <div className="ree-label">Custom</div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="color"
-                      className="ree-color-input"
-                      onChange={(e) => {
-                        execCommand('foreColor', e.target.value);
-                        setShowColorPicker(false);
-                      }}
-                      title="Choose custom color"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <ColorPicker
+            key="color"
+            activeColor={activeColor}
+            show={showColorPicker}
+            onToggle={() => setShowColorPicker(!showColorPicker)}
+            onPick={(color) => {
+              execCommand('foreColor', color);
+              setShowColorPicker(false);
+            }}
+            containerRef={colorPickerRef}
+          />
         );
       case 'variables':
         return (
-          <div key="variables" className="ree-dropdown-container" ref={variablesRef}>
-            <button
-              type="button"
-              onClick={() => setShowVariables(!showVariables)}
-              className={`ree-btn ${showVariables ? 'active' : ''}`}
-              title="Insert Variable"
-            >
-              <Braces size={18} />
-            </button>
-
-            {showVariables && (
-              <div className="ree-popup" style={{ width: '200px', padding: '0' }}>
-                 <div className="ree-label" style={{ padding: '8px 12px', borderBottom: '1px solid #e5e7eb', margin: 0 }}>
-                   Insert Variable
-                 </div>
-                 <div style={{ maxHeight: '240px', overflowY: 'auto', padding: '4px' }}>
-                   {variables.length > 0 ? (
-                     variables.map((variable) => (
-                       <button
-                         key={variable.value}
-                         className="ree-list-btn"
-                         onMouseDown={(e) => {
-                           e.preventDefault();
-                           insertVariable(variable.value);
-                         }}
-                       >
-                         {variable.label}
-                       </button>
-                     ))
-                   ) : (
-                     <div style={{ padding: '8px 12px', fontSize: '14px', color: '#9ca3af', fontStyle: 'italic' }}>
-                       No variables available
-                     </div>
-                   )}
-                 </div>
-              </div>
-            )}
-          </div>
+          <VariablesPicker
+            key="variables"
+            variables={variables}
+            show={showVariables}
+            onToggle={() => setShowVariables(!showVariables)}
+            onInsert={insertVariable}
+            containerRef={variablesRef}
+          />
         );
       case 'h1':
         return <ToolbarButton key="h1" icon={Heading1} onMouseDown={() => execCommand("formatBlock", "H1")} label="Heading 1" />;
@@ -701,156 +592,32 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
         return <ToolbarButton key="orderedList" icon={ListOrdered} onMouseDown={() => execCommand("insertOrderedList")} isActive={activeFormats.includes('insertOrderedList')} label="Ordered List" />;
       case 'link':
         return (
-          <div key="link" className="ree-dropdown-container" ref={linkPickerRef}>
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                openLinkPicker();
-              }}
-              className={`ree-btn ${showLinkPicker || activeFormats.includes('createLink') ? 'active' : ''}`}
-              title={activeFormats.includes('createLink') || isEditingLink ? 'Edit Link' : 'Link'}
-            >
-              <LinkIcon size={18} />
-            </button>
-
-            {showLinkPicker && (
-              <div className="ree-popup" style={{ width: '260px', padding: '0' }}>
-                <div
-                  className="ree-label"
-                  style={{ padding: '8px 12px', borderBottom: '1px solid #e5e7eb', margin: 0 }}
-                >
-                  {isEditingLink ? 'Edit Link' : 'Insert Link'}
-                </div>
-                <div style={{ padding: '10px 12px' }}>
-                  <label
-                    className="ree-label"
-                    style={{ display: 'block', marginBottom: 6, textTransform: 'none', letterSpacing: 0 }}
-                  >
-                    URL or variable
-                  </label>
-                  <input
-                    type="text"
-                    className="ree-link-input"
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        applyLink();
-                      }
-                      if (e.key === 'Escape') {
-                        setShowLinkPicker(false);
-                      }
-                    }}
-                    placeholder="https://… or {{unsubscribe}}"
-                    autoFocus
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button
-                      type="button"
-                      className="ree-list-btn"
-                      style={{
-                        flex: 1,
-                        textAlign: 'center',
-                        backgroundColor: '#2563eb',
-                        color: '#fff',
-                        fontWeight: 500,
-                      }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        applyLink();
-                      }}
-                    >
-                      {isEditingLink ? 'Update' : 'Apply'}
-                    </button>
-                    {isEditingLink && (
-                      <button
-                        type="button"
-                        className="ree-list-btn"
-                        style={{ flex: 1, textAlign: 'center' }}
-                        title="Unlink"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          removeLink();
-                        }}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {variables.length > 0 && (
-                  <div style={{ borderTop: '1px solid #e5e7eb' }}>
-                    <div
-                      className="ree-label"
-                      style={{ padding: '8px 12px 4px', margin: 0 }}
-                    >
-                      Use variable as URL
-                    </div>
-                    <div style={{ maxHeight: 160, overflowY: 'auto', padding: '0 4px 4px' }}>
-                      {variables.map((variable) => (
-                        <button
-                          key={variable.value}
-                          type="button"
-                          className="ree-list-btn"
-                          title={variable.value}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            applyLinkVariable(variable.value);
-                          }}
-                        >
-                          {variable.label}
-                          <span
-                            style={{
-                              display: 'block',
-                              fontSize: 11,
-                              color: '#9ca3af',
-                              marginTop: 2,
-                            }}
-                          >
-                            {variable.value}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <LinkPicker
+            key="link"
+            linkUrl={linkUrl}
+            setLinkUrl={setLinkUrl}
+            isEditingLink={isEditingLink}
+            isActive={activeFormats.includes('createLink')}
+            show={showLinkPicker}
+            variables={variables}
+            applyLink={applyLink}
+            removeLink={removeLink}
+            applyLinkVariable={applyLinkVariable}
+            onOpen={openLinkPicker}
+            onClose={() => setShowLinkPicker(false)}
+            containerRef={linkPickerRef}
+          />
         );
       case 'image':
         return (
-          <div key="image" className="ree-dropdown-container" ref={imagePickerRef}>
-             <button
-              type="button"
-              onClick={() => setShowImagePicker(!showImagePicker)}
-              className={`ree-btn ${showImagePicker ? 'active' : ''}`}
-              title="Insert Image"
-            >
-              <ImageIcon size={18} />
-            </button>
-            
-            {showImagePicker && (
-              <div className="ree-popup" style={{ width: '200px', padding: '4px' }}>
-                 <button
-                   type="button"
-                   className="ree-list-btn"
-                   onClick={handleImageUploadClick}
-                 >
-                   Upload from Device
-                 </button>
-                 <button
-                   type="button"
-                   className="ree-list-btn"
-                   onClick={handleImageUrlClick}
-                 >
-                   Insert via URL
-                 </button>
-              </div>
-            )}
-          </div>
+          <ImagePicker
+            key="image"
+            show={showImagePicker}
+            onToggle={() => setShowImagePicker(!showImagePicker)}
+            onUploadClick={handleImageUploadClick}
+            onUrlClick={handleImageUrlClick}
+            containerRef={imagePickerRef}
+          />
         );
       case 'blockquote':
         return <ToolbarButton key="blockquote" icon={Quote} onMouseDown={() => execCommand("formatBlock", "BLOCKQUOTE")} label="Quote" />;
