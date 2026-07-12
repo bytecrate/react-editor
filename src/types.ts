@@ -47,6 +47,18 @@ export interface EmailEditorProps {
    */
   onImageUpload?: (file: File) => Promise<string>;
   toolbarConfig?: ToolbarConfig;
+  /**
+   * When true (default), sanitize paste, seed HTML, controlled `value`, and
+   * `setHTML` input, and block dangerous link/image URLs.
+   * Set to `false` only for trusted admin tools.
+   */
+  sanitize?: boolean;
+  /**
+   * Optional paste override. When provided (and `sanitize` is not false),
+   * clipboard HTML is passed through this function instead of the built-in
+   * sanitizer before insert.
+   */
+  onPasteHtml?: (html: string) => string;
 }
 
 export type ToolbarItem =

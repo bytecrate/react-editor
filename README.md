@@ -12,6 +12,7 @@ A lightweight, robust, and feature-rich React email template editor. Built with 
 *   **Media & Links**: Image insertion via URL, File Upload (Base64 default, custom async upload supported), and Hyperlink management.
 *   **Templating**: Built-in Variable/Merge Tag insertion support (e.g., `{{firstName}}`).
 *   **History**: Undo/Redo functionality.
+*   **Paste / HTML sanitization**: By default, paste and external HTML entry points strip common unsafe patterns (scripts, event handlers, dangerous URLs) while keeping email-friendly markup and merge tags.
 *   **Zero Styles Configuration**: Works out of the box with internal styling, but accepts external classes.
 
 ## Installation
@@ -124,6 +125,30 @@ const myVariables = [
 />
 ```
 
+## HTML sanitization and paste
+
+By default (`sanitize={true}`), the editor sanitizes common unsafe patterns for email HTML on:
+
+* Paste into the contenteditable surface
+* Mount seed (`initialValue` / controlled `value`)
+* Imperative `ref.setHTML(...)`
+* Link and image URL apply (toolbar / prompt)
+
+**Allowed URL schemes** for `href` / `src`: `http:`, `https:`, `mailto:`, `cid:`, `#` anchors, relative paths, `data:image/*`, and full merge tags such as `{{unsubscribe}}`. Dangerous schemes like `javascript:` and `data:text/html` are rejected (links/images not applied; attributes stripped from HTML).
+
+This is **not** a claim of being XSS-proof. Hosts that load untrusted templates should still treat output carefully. For trusted admin tools only, you can disable sanitization:
+
+```tsx
+// Escape hatch — only for fully trusted content
+<EmailEditor sanitize={false} initialValue={trustedHtml} />
+```
+
+Optional paste override (replaces the built-in sanitizer for **clipboard HTML only** — seed/`setHTML`/URLs still use the built-in policy when `sanitize` is true). Treat `onPasteHtml` as a full trust boundary for paste: return only safe HTML.
+
+```tsx
+<EmailEditor onPasteHtml={(html) => mySanitize(html)} />
+```
+
 ## Props API
 
 | Prop | Type | Default | Description |
@@ -135,6 +160,8 @@ const myVariables = [
 | `placeholder` | `string` | `"Start writing..."` | Placeholder text shown when empty. |
 | `defaultPadding` | `string` | `"24px"` | Default padding applied to the main container. |
 | `onImageUpload` | `(file: File) => Promise<string>` | `-` | Callback to handle custom image uploads (overrides Base64). |
+| `sanitize` | `boolean` | `true` | Sanitize paste, external HTML, and block dangerous link/image URLs. Set `false` only for trusted admin tools. |
+| `onPasteHtml` | `(html: string) => string` | `-` | Optional paste transform; when set, used instead of the built-in sanitizer for clipboard HTML. |
 | `style` | `React.CSSProperties` | `-` | Inline styles for the outer editor container. |
 | `className` | `string` | `""` | CSS class names for the outer editor container. |
 
