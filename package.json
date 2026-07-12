@@ -1,6 +1,6 @@
 {
   "name": "@bytecrate/react-editor",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "A lightweight, dependency-free React editor.",
   "repository": {
     "type": "git",
