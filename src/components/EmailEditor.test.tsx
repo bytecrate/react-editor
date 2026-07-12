@@ -164,9 +164,25 @@ describe('EmailEditor', () => {
     document.execCommand = originalExecCommand;
   });
 
-  it('opens the variables dropdown and inserts the selected variable', () => {
+  it('opens the variables dropdown and inserts the selected variable as a chip', () => {
+    // Materialize insertHTML so the chip lands in the contenteditable
+    document.execCommand = vi.fn().mockImplementation((command, _show, value) => {
+      if (command === 'insertHTML' && typeof value === 'string') {
+        const content = document.querySelector('.ree-content') as HTMLElement | null;
+        if (content) {
+          content.insertAdjacentHTML('beforeend', value);
+          return true;
+        }
+      }
+      return false;
+    });
+
+    const handleChange = vi.fn();
     render(
-      <EmailEditor variables={[{ label: 'Username', value: '{{username}}' }]} />
+      <EmailEditor
+        variables={[{ label: 'Username', value: '{{username}}' }]}
+        onChange={handleChange}
+      />
     );
 
     fireEvent.click(screen.getByTitle('Insert Variable'));
@@ -176,10 +192,54 @@ describe('EmailEditor', () => {
 
     fireEvent.mouseDown(usernameOption);
     expect(document.execCommand).toHaveBeenCalledWith(
+      'insertHTML',
+      false,
+      expect.stringContaining('ree-merge-tag')
+    );
+
+    const chip = document.querySelector('.ree-content .ree-merge-tag') as HTMLElement | null;
+    expect(chip).not.toBeNull();
+    expect(chip?.dataset.mergeTag).toBe('{{username}}');
+    expect(chip?.textContent).toBe('Username');
+    // onChange emits plain token (policy B), not the chip span
+    expect(handleChange).toHaveBeenCalled();
+    const emitted = handleChange.mock.calls[handleChange.mock.calls.length - 1][0] as string;
+    expect(emitted).toContain('{{username}}');
+    expect(emitted).not.toContain('ree-merge-tag');
+  });
+
+  it('inserts plain text when variablesAsChips is false', () => {
+    document.execCommand = vi.fn();
+    render(
+      <EmailEditor
+        variables={[{ label: 'Username', value: '{{username}}' }]}
+        variablesAsChips={false}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Insert Variable'));
+    fireEvent.mouseDown(screen.getByText('Username'));
+    expect(document.execCommand).toHaveBeenCalledWith(
       'insertText',
       false,
       '{{username}}'
     );
+  });
+
+  it('hydrates merge tokens in initialValue into chips', () => {
+    render(
+      <EmailEditor
+        initialValue="<p>Hello {{firstName}}</p>"
+        variables={[{ label: 'First Name', value: '{{firstName}}' }]}
+      />
+    );
+
+    const chip = document.querySelector('.ree-content .ree-merge-tag') as HTMLElement | null;
+    expect(chip).not.toBeNull();
+    expect(chip?.dataset.mergeTag).toBe('{{firstName}}');
+    expect(chip?.textContent).toBe('First Name');
+    // Visible label in the tree
+    expect(screen.getByText('First Name')).toBeDefined();
   });
 
   it('opens the padding picker and shows side adjustment controls', () => {

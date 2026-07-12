@@ -6,6 +6,7 @@ import { EDITOR_STYLES } from "../styles";
 import { useImageResizer } from "../hooks/useImageResizer";
 import { useEditorCommands } from "../hooks/useEditorCommands";
 import { sanitizeEmailHtml, sanitizeUrl } from "../lib/sanitizeHtml";
+import { hydrateMergeTags, serializeMergeTags } from "../lib/mergeTags";
 import {
   isEditorDomEmpty,
   placeholderInsetFromPadding,
@@ -25,6 +26,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     ariaLabel,
     enableShortcuts = true,
     variables = DEFAULT_VARIABLES,
+    variablesAsChips = true,
     defaultPadding = "24px",
     onImageUpload,
     onImageUploadError,
@@ -146,10 +148,15 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     }
   }, []);
 
+  // Keep latest variables for hydrate without re-running controlled sync on list identity changes
+  const variablesListRef = useRef(variables);
+  variablesListRef.current = variables;
+
   const handleInput = useCallback(() => {
     if (contentRef.current) {
       if (onChange) {
-        onChange(contentRef.current.innerHTML);
+        // Policy B: emit plain merge tokens for host string-replace
+        onChange(serializeMergeTags(contentRef.current.innerHTML));
       }
       setIsEmpty(isEditorDomEmpty(contentRef.current));
     }
@@ -234,10 +241,18 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     [selectedImg, sanitize, handleInput]
   );
 
-  /** Sanitize external HTML when the sanitize prop is enabled (default). */
+  /**
+   * Sanitize external HTML (when enabled), then hydrate merge tokens to chips
+   * for display. Changing `variables` mid-edit does not re-label existing chips
+   * (variables are read via ref to avoid caret jumps on list identity churn).
+   */
   const prepareHtml = useCallback(
-    (html: string) => (sanitize === false ? html : sanitizeEmailHtml(html)),
-    [sanitize]
+    (html: string) => {
+      const cleaned = sanitize === false ? html : sanitizeEmailHtml(html);
+      if (variablesAsChips === false) return cleaned;
+      return hydrateMergeTags(cleaned, variablesListRef.current);
+    },
+    [sanitize, variablesAsChips]
   );
 
   const applyHtmlToDom = useCallback((html: string) => {
@@ -259,11 +274,13 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     setIsEmpty(isEditorDomEmpty(contentRef.current));
   }, []);
 
-  // Controlled sync: write when sanitized value differs from DOM (avoids caret jump)
+  // Controlled sync: compare serialized forms so chip DOM vs plain-token value
+  // does not thrash (hosts hold tokens; editor displays chips).
   useEffect(() => {
     if (!isControlled || !contentRef.current) return;
-    const next = prepareHtml(value ?? "");
-    if (next !== contentRef.current.innerHTML) {
+    const nextSerialized = serializeMergeTags(prepareHtml(value ?? ""));
+    const currentSerialized = serializeMergeTags(contentRef.current.innerHTML);
+    if (nextSerialized !== currentSerialized) {
       applyHtmlToDom(value ?? "");
     }
   }, [value, isControlled, applyHtmlToDom, prepareHtml]);
@@ -343,14 +360,17 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     () => {
       const setHTML = (html: string) => {
         applyHtmlToDom(html);
-        // Emit post-serialize DOM HTML so controlled parents match handleInput
-        onChange?.(contentRef.current?.innerHTML ?? html);
+        // Policy B: emit serialized tokens so controlled parents match handleInput
+        onChange?.(
+          serializeMergeTags(contentRef.current?.innerHTML ?? html)
+        );
       };
       return {
         focus: () => {
           contentRef.current?.focus();
         },
-        getHTML: () => contentRef.current?.innerHTML ?? "",
+        getHTML: () =>
+          serializeMergeTags(contentRef.current?.innerHTML ?? ""),
         setHTML,
         clear: () => setHTML(""),
         getContentElement: () => contentRef.current,
@@ -364,6 +384,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     execFontSize,
     updatePadding,
     insertVariable,
+    openVariablesPicker,
     openLinkPicker,
     applyLink,
     removeLink,
@@ -379,6 +400,8 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     handleInput,
     updateActiveFormats,
     sanitize,
+    variablesAsChips,
+    variables,
     onPasteHtml,
     onImageUpload,
     onImageUploadError,
@@ -389,6 +412,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     setShowLinkPicker,
     setIsEditingLink,
     setShowImagePicker,
+    showVariables,
     setShowVariables,
     setShowColorPicker,
     setShowPaddingPicker,
@@ -474,7 +498,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
         colorPickerRef={colorPickerRef}
         variables={variables}
         showVariables={showVariables}
-        setShowVariables={setShowVariables}
+        openVariablesPicker={openVariablesPicker}
         insertVariable={insertVariable}
         variablesRef={variablesRef}
         linkUrl={linkUrl}

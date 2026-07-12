@@ -391,4 +391,17 @@ export const EDITOR_STYLES = `
   .ree-content blockquote { border-left: 4px solid #e5e7eb; margin: 1em 0; padding-left: 1em; color: #4b5563; font-style: italic; }
   .ree-content a { color: #2563eb; text-decoration: underline; }
   .ree-content img { max-width: 100%; height: auto; border-radius: 4px; cursor: pointer; }
+
+  /* Merge-tag chips (plan 020) */
+  .ree-merge-tag {
+    display: inline-block;
+    padding: 0 6px;
+    margin: 0 1px;
+    border-radius: 4px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.95em;
+    user-select: all;
+    cursor: default;
+  }
 `;
