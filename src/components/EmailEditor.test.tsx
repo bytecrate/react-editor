@@ -113,4 +113,82 @@ describe('EmailEditor', () => {
     // Restore original mock
     document.execCommand = originalExecCommand;
   });
+
+  it('opens the variables dropdown and inserts the selected variable', () => {
+    render(
+      <EmailEditor variables={[{ label: 'Username', value: '{{username}}' }]} />
+    );
+
+    fireEvent.click(screen.getByTitle('Insert Variable'));
+
+    const usernameOption = screen.getByText('Username');
+    expect(usernameOption).toBeDefined();
+
+    fireEvent.mouseDown(usernameOption);
+    expect(document.execCommand).toHaveBeenCalledWith(
+      'insertText',
+      false,
+      '{{username}}'
+    );
+  });
+
+  it('opens the padding picker and shows side adjustment controls', () => {
+    const handleChange = vi.fn();
+    render(<EmailEditor initialValue="<p>Padded content</p>" onChange={handleChange} />);
+
+    fireEvent.click(screen.getByTitle('Padding & Spacing'));
+
+    expect(screen.getByText('top')).toBeDefined();
+    expect(screen.getByText('right')).toBeDefined();
+    expect(screen.getByText('bottom')).toBeDefined();
+    expect(screen.getByText('left')).toBeDefined();
+
+    // Place selection inside a block so updatePadding can target it
+    const paragraph = screen.getByText('Padded content') as HTMLElement;
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    // Increase top padding via the first row's plus button
+    const padRows = document.querySelectorAll('.ree-pad-row');
+    expect(padRows.length).toBe(4);
+    const increaseButtons = padRows[0].querySelectorAll('button[title="Increase"]');
+    expect(increaseButtons.length).toBe(1);
+
+    fireEvent.mouseDown(increaseButtons[0]);
+
+    // State update should reflect on the control value and trigger onChange via handleInput
+    expect(padRows[0].querySelector('.ree-pad-val')?.textContent?.trim()).toBe('1');
+    expect(paragraph.style.paddingTop).toBe('1px');
+    expect(handleChange).toHaveBeenCalled();
+  });
+
+  it('opens the color picker and applies a preset color via foreColor', () => {
+    render(<EmailEditor />);
+
+    fireEvent.click(screen.getByTitle('Text Color'));
+
+    // Preset color grid should render (PRESET_COLORS includes #000000, #EF4444, etc.)
+    const swatch = screen.getByTitle('#EF4444');
+    expect(swatch).toBeDefined();
+
+    fireEvent.mouseDown(swatch);
+    expect(document.execCommand).toHaveBeenCalledWith('foreColor', false, '#EF4444');
+  });
+
+  it('dismisses open picker dropdowns when clicking outside', () => {
+    render(
+      <EmailEditor variables={[{ label: 'Username', value: '{{username}}' }]} />
+    );
+
+    fireEvent.click(screen.getByTitle('Insert Variable'));
+    expect(screen.getByText('Username')).toBeDefined();
+
+    // Click outside the picker (mousedown, matching the document listener)
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByText('Username')).toBeNull();
+  });
 });
