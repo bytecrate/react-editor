@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Link as LinkIcon } from "lucide-react";
 import type { Variable } from "../../../types";
 
@@ -31,22 +31,41 @@ export function LinkPicker({
   onClose,
   containerRef,
 }: LinkPickerProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const linkLabel = isActive || isEditingLink ? "Edit Link" : "Link";
+
   return (
     <div className="ree-dropdown-container" ref={containerRef}>
       <button
+        ref={triggerRef}
         type="button"
         onMouseDown={(e) => {
           e.preventDefault();
           onOpen();
         }}
         className={`ree-btn ${show || isActive ? "active" : ""}`}
-        title={isActive || isEditingLink ? "Edit Link" : "Link"}
+        title={linkLabel}
+        aria-label={linkLabel}
+        aria-expanded={show}
+        aria-haspopup="dialog"
       >
-        <LinkIcon size={18} />
+        <LinkIcon size={18} aria-hidden="true" />
       </button>
 
       {show && (
-        <div className="ree-popup" style={{ width: "260px", padding: "0" }}>
+        <div
+          className="ree-popup"
+          role="dialog"
+          aria-label={isEditingLink ? "Edit Link" : "Insert Link"}
+          style={{ width: "260px", padding: "0" }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              onClose();
+              triggerRef.current?.focus();
+            }
+          }}
+        >
           <div
             className="ree-label"
             style={{ padding: "8px 12px", borderBottom: "1px solid #e5e7eb", margin: 0 }}
@@ -71,7 +90,9 @@ export function LinkPicker({
                   applyLink();
                 }
                 if (e.key === "Escape") {
+                  e.preventDefault();
                   onClose();
+                  triggerRef.current?.focus();
                 }
               }}
               placeholder="https://… or {{unsubscribe}}"
@@ -100,7 +121,7 @@ export function LinkPicker({
                   type="button"
                   className="ree-list-btn"
                   style={{ flex: 1, textAlign: "center" }}
-                  title="Unlink"
+                  title="Remove link"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     removeLink();

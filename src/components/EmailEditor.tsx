@@ -21,6 +21,8 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     style,
     className = "",
     placeholder = "Start writing your email...",
+    ariaLabel,
+    enableShortcuts = true,
     variables = DEFAULT_VARIABLES,
     defaultPadding = "24px",
     onImageUpload,
@@ -213,6 +215,52 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Escape closes any open picker and returns focus to its trigger button
+  useEffect(() => {
+    const focusTrigger = (container: HTMLDivElement | null) => {
+      const trigger = container?.querySelector<HTMLButtonElement>("button.ree-btn");
+      trigger?.focus();
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      if (showColorPicker) {
+        event.preventDefault();
+        setShowColorPicker(false);
+        focusTrigger(colorPickerRef.current);
+        return;
+      }
+      if (showVariables) {
+        event.preventDefault();
+        setShowVariables(false);
+        focusTrigger(variablesRef.current);
+        return;
+      }
+      if (showPaddingPicker) {
+        event.preventDefault();
+        setShowPaddingPicker(false);
+        focusTrigger(paddingPickerRef.current);
+        return;
+      }
+      if (showImagePicker) {
+        event.preventDefault();
+        setShowImagePicker(false);
+        focusTrigger(imagePickerRef.current);
+        return;
+      }
+      if (showLinkPicker) {
+        event.preventDefault();
+        setShowLinkPicker(false);
+        setIsEditingLink(false);
+        focusTrigger(linkPickerRef.current);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showColorPicker, showVariables, showPaddingPicker, showImagePicker, showLinkPicker]);
+
   useImperativeHandle(
     ref,
     () => {
@@ -268,6 +316,54 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     setPaddings,
   });
 
+  const handleEditorKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!enableShortcuts) return;
+
+      const target = e.target as HTMLElement;
+      const tag = target.tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      const key = e.key.toLowerCase();
+
+      if (key === "b") {
+        e.preventDefault();
+        execCommand("bold");
+        return;
+      }
+      if (key === "i") {
+        e.preventDefault();
+        execCommand("italic");
+        return;
+      }
+      if (key === "u") {
+        e.preventDefault();
+        execCommand("underline");
+        return;
+      }
+      if (key === "k") {
+        e.preventDefault();
+        openLinkPicker();
+        return;
+      }
+      if (key === "y") {
+        e.preventDefault();
+        execCommand("redo");
+        return;
+      }
+      if (key === "z") {
+        e.preventDefault();
+        execCommand(e.shiftKey ? "redo" : "undo");
+      }
+    },
+    [enableShortcuts, execCommand, openLinkPicker]
+  );
+
+  const contentAriaLabel = ariaLabel ?? placeholder ?? "Email content";
+
   return (
     <div className={`ree-container ${className}`} style={style}>
       <style>{EDITOR_STYLES}</style>
@@ -305,6 +401,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
         linkUrl={linkUrl}
         setLinkUrl={setLinkUrl}
         isEditingLink={isEditingLink}
+        setIsEditingLink={setIsEditingLink}
         showLinkPicker={showLinkPicker}
         setShowLinkPicker={setShowLinkPicker}
         applyLink={applyLink}
@@ -335,7 +432,11 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
           ref={contentRef}
           className="ree-content"
           contentEditable
+          role="textbox"
+          aria-multiline="true"
+          aria-label={contentAriaLabel}
           onInput={handleInput}
+          onKeyDown={handleEditorKeyDown}
           onKeyUp={updateActiveFormats}
           onMouseUp={updateActiveFormats}
           onPaste={handlePaste}

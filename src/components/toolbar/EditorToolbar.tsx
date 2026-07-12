@@ -60,6 +60,7 @@ export interface EditorToolbarProps {
   linkUrl: string;
   setLinkUrl: (url: string) => void;
   isEditingLink: boolean;
+  setIsEditingLink: (editing: boolean) => void;
   showLinkPicker: boolean;
   setShowLinkPicker: (show: boolean) => void;
   applyLink: (urlOverride?: string) => void;
@@ -100,6 +101,7 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
     linkUrl,
     setLinkUrl,
     isEditingLink,
+    setIsEditingLink,
     showLinkPicker,
     setShowLinkPicker,
     applyLink,
@@ -128,6 +130,7 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
               value={currentFont}
               onChange={(e) => execCommand("fontName", e.target.value)}
               title="Font Family"
+              aria-label="Font Family"
               style={{ width: "130px", fontFamily: currentFont }}
             >
               {FONT_FAMILIES.map((font) => (
@@ -151,6 +154,7 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
               value={currentFontSize}
               onChange={(e) => execFontSize(e.target.value)}
               title="Font Size"
+              aria-label="Font Size"
               style={{ width: "80px" }}
             >
               {FONT_SIZES.map((size) => (
@@ -242,7 +246,10 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
             removeLink={removeLink}
             applyLinkVariable={applyLinkVariable}
             onOpen={openLinkPicker}
-            onClose={() => setShowLinkPicker(false)}
+            onClose={() => {
+              setShowLinkPicker(false);
+              setIsEditingLink(false);
+            }}
             containerRef={linkPickerRef}
           />
         );
@@ -274,7 +281,7 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
   });
 
   return (
-    <div className="ree-toolbar">
+    <div className="ree-toolbar" role="toolbar" aria-label="Formatting">
       {normalizedConfig.map((group, groupIdx) => {
         const renderedItems = group
           .map((item) => renderToolbarItem(item))

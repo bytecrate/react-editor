@@ -157,7 +157,7 @@ describe('Link edit + variable href', () => {
 
     placeCaretIn(screen.getByText('click me'));
     fireEvent.mouseDown(screen.getByTitle('Edit Link'));
-    fireEvent.mouseDown(screen.getByTitle('Unlink'));
+    fireEvent.mouseDown(screen.getByTitle('Remove link'));
 
     const content = document.querySelector('.ree-content') as HTMLElement;
     expect(content.querySelector('a')).toBeNull();
