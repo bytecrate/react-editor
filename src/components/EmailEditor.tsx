@@ -566,9 +566,18 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
 
     const html = e.clipboardData?.getData("text/html");
     const text = e.clipboardData?.getData("text/plain");
+
+    // Only take over when we have text/html or plain text. Leave image-only
+    // clipboard pastes (screenshots, etc.) to the browser default.
+    if (!html && !text) {
+      return;
+    }
+
     e.preventDefault();
 
     if (html) {
+      // onPasteHtml fully replaces the built-in sanitizer for this path —
+      // hosts must return safe HTML (equal trust boundary to sanitize={false} for paste).
       const clean = onPasteHtml ? onPasteHtml(html) : sanitizeEmailHtml(html);
       document.execCommand("insertHTML", false, clean);
     } else if (text) {

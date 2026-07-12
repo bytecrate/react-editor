@@ -120,6 +120,16 @@ describe('EmailEditor paste + URL sanitization', () => {
     );
   });
 
+  it('does not take over paste when clipboard has neither html nor plain text', () => {
+    // Image-only pastes should fall through to the browser (no preventDefault path)
+    render(<EmailEditor toolbarConfig={[]} />);
+    const contentEditable = document.querySelector('.ree-content') as HTMLElement;
+
+    pasteHtml(contentEditable, '', '');
+
+    expect(document.execCommand).not.toHaveBeenCalled();
+  });
+
   it('rejects javascript: when applying a new link', () => {
     render(
       <EmailEditor

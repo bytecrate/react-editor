@@ -68,6 +68,7 @@ const ALLOWED_ATTRS = new Set([
   "height",
   "style",
   "target",
+  "rel",
   "colspan",
   "rowspan",
   // <font> path used by execFontSize
@@ -77,7 +78,10 @@ const ALLOWED_ATTRS = new Set([
   // TODO plan 020: "data-variable", "contenteditable"
 ]);
 
-/** Safe CSS property names commonly used in email HTML. */
+/**
+ * Safe CSS property names commonly used in email HTML.
+ * Prefer `background-color` over the `background` shorthand (avoids url() surface).
+ */
 const ALLOWED_STYLE_PROPS = new Set([
   "color",
   "font-size",
@@ -97,7 +101,6 @@ const ALLOWED_STYLE_PROPS = new Set([
   "margin-bottom",
   "margin-left",
   "background-color",
-  "background",
   "width",
   "height",
   "max-width",
@@ -116,43 +119,68 @@ const ALLOWED_STYLE_PROPS = new Set([
 /** Full-string merge tag, e.g. `{{unsubscribe}}` or `{{ user.url }}`. */
 const MERGE_TAG_RE = /^\{\{[^}]+\}\}$/;
 
+/** Raster data:image types the editor and email clients commonly use. */
+const SAFE_DATA_IMAGE_RE =
+  /^data:image\/(?:png|jpe?g|gif|webp|bmp|x-icon|vnd\.microsoft\.icon)[;,]/i;
+
+/**
+ * WHATWG URL prep: browsers strip ASCII tab/LF/CR from the entire URL before
+ * scheme parsing. Mirror that so `java\tscript:` cannot bypass checks.
+ */
+function normalizeUrlInput(url: string): string {
+  return url.trim().replace(/[\t\n\r]/g, "");
+}
+
+function isDangerousScheme(normalizedLower: string): boolean {
+  return (
+    normalizedLower.startsWith("javascript:") ||
+    normalizedLower.startsWith("vbscript:") ||
+    /^data:\s*text\/html/i.test(normalizedLower)
+  );
+}
+
 /**
  * Return true when `url` is acceptable for href/src in email HTML.
  */
 export function isSafeUrl(url: string): boolean {
-  const trimmed = url.trim();
-  if (!trimmed) return false;
+  const normalized = normalizeUrlInput(url);
+  if (!normalized) return false;
 
-  if (MERGE_TAG_RE.test(trimmed)) return true;
+  if (MERGE_TAG_RE.test(normalized)) return true;
 
-  // Anchors and common relative forms (no scheme)
-  if (trimmed.startsWith("#")) return true;
+  // Anchors (after control-char strip)
+  if (normalized.startsWith("#")) return true;
 
-  const lower = trimmed.toLowerCase();
+  const lower = normalized.toLowerCase();
 
-  // Explicit rejects (scheme-based)
-  if (
-    lower.startsWith("javascript:") ||
-    lower.startsWith("vbscript:") ||
-    lower.startsWith("data:text/html")
-  ) {
+  if (isDangerousScheme(lower)) {
     return false;
   }
 
-  if (lower.startsWith("data:image/")) return true;
-  if (/^https?:/i.test(trimmed)) return true;
-  if (/^mailto:/i.test(trimmed)) return true;
-  if (/^cid:/i.test(trimmed)) return true;
+  // Raster images only — SVG-as-image is a residual vector in some environments
+  if (lower.startsWith("data:image/")) {
+    return SAFE_DATA_IMAGE_RE.test(lower);
+  }
+  if (lower.startsWith("data:")) {
+    return false;
+  }
 
-  // Protocol-relative URLs (//cdn.example.com) — common in email, not scriptable here
-  if (trimmed.startsWith("//")) {
-    // Reject //javascript:… style oddities
-    if (/^\/\/\s*javascript:/i.test(trimmed)) return false;
+  if (/^https?:/i.test(normalized)) return true;
+  if (/^mailto:/i.test(normalized)) return true;
+  if (/^cid:/i.test(normalized)) return true;
+
+  // Protocol-relative URLs (//cdn.example.com)
+  if (normalized.startsWith("//")) {
+    const afterSlashes = lower.slice(2);
+    if (isDangerousScheme(afterSlashes)) return false;
+    // //something:… other than host:port is suspicious; hostnames use dots or bare labels
+    // Allow typical //host/path forms; reject //scheme: payload
+    if (/^[a-z][a-z0-9+.-]*:/i.test(afterSlashes)) return false;
     return true;
   }
 
   // Any other explicit scheme is rejected
-  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(normalized)) {
     return false;
   }
 
@@ -161,30 +189,18 @@ export function isSafeUrl(url: string): boolean {
 }
 
 /**
- * Return a trimmed safe URL, or `null` if unsafe / empty.
+ * Return a normalized safe URL, or `null` if unsafe / empty.
+ * Control characters are stripped to match browser URL parsing.
  */
 export function sanitizeUrl(url: string): string | null {
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-  return isSafeUrl(trimmed) ? trimmed : null;
+  const normalized = normalizeUrlInput(url);
+  if (!normalized) return null;
+  return isSafeUrl(normalized) ? normalized : null;
 }
 
 function sanitizeStyleValue(style: string): string | null {
   const raw = style.trim();
   if (!raw) return null;
-
-  // Reject known dangerous constructs regardless of property name
-  if (
-    /expression\s*\(/i.test(raw) ||
-    /url\s*\(\s*['"]?\s*javascript:/i.test(raw) ||
-    /-moz-binding/i.test(raw) ||
-    /behavior\s*:/i.test(raw) ||
-    /@import/i.test(raw)
-  ) {
-    // Drop the entire style attribute when it contains known-bad constructs
-    // (safer than trying to partially parse)
-    // Still try to keep safe declarations if we can filter them.
-  }
 
   const kept: string[] = [];
   // Split on `;` but ignore empty trailing segments
@@ -199,10 +215,12 @@ function sanitizeStyleValue(style: string): string | null {
     if (!ALLOWED_STYLE_PROPS.has(prop)) continue;
     if (
       /expression\s*\(/i.test(value) ||
-      /url\s*\(\s*['"]?\s*javascript:/i.test(value) ||
+      /url\s*\(/i.test(value) ||
       /-moz-binding/i.test(value) ||
-      /behavior/i.test(value)
+      /behavior/i.test(value) ||
+      /@import/i.test(value)
     ) {
+      // No url() in style values — email color/size props do not need them
       continue;
     }
     kept.push(`${prop}: ${value}`);
@@ -252,11 +270,39 @@ function sanitizeElementAttributes(el: Element): void {
 
     if (lower === "target") {
       const t = (el.getAttribute("target") ?? "").trim().toLowerCase();
-      // Only allow common safe targets
       if (t !== "_blank" && t !== "_self") {
         el.removeAttribute("target");
+      } else if (t === "_blank") {
+        // Harden tab-nabbing: force noopener noreferrer on blank targets
+        const existingRel = (el.getAttribute("rel") ?? "").toLowerCase();
+        const tokens = new Set(existingRel.split(/\s+/).filter(Boolean));
+        tokens.add("noopener");
+        tokens.add("noreferrer");
+        el.setAttribute("rel", Array.from(tokens).join(" "));
+      }
+      continue;
+    }
+
+    if (lower === "rel") {
+      // Only allow a small safe subset; target=_blank handler may add tokens later
+      // in the same pass — re-validate after loop if needed. Strip javascript: junk.
+      const rel = (el.getAttribute("rel") ?? "").toLowerCase();
+      if (/javascript:|data:/i.test(rel)) {
+        el.removeAttribute("rel");
       }
     }
+  }
+
+  // If target=_blank survived without rel (attribute order), ensure rel exists
+  if (
+    el.tagName.toUpperCase() === "A" &&
+    (el.getAttribute("target") ?? "").toLowerCase() === "_blank"
+  ) {
+    const existingRel = (el.getAttribute("rel") ?? "").toLowerCase();
+    const tokens = new Set(existingRel.split(/\s+/).filter(Boolean));
+    tokens.add("noopener");
+    tokens.add("noreferrer");
+    el.setAttribute("rel", Array.from(tokens).join(" "));
   }
 }
 

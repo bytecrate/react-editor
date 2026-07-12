@@ -143,7 +143,7 @@ This is **not** a claim of being XSS-proof. Hosts that load untrusted templates 
 <EmailEditor sanitize={false} initialValue={trustedHtml} />
 ```
 
-Optional paste override (replaces the built-in sanitizer for clipboard HTML only):
+Optional paste override (replaces the built-in sanitizer for **clipboard HTML only** — seed/`setHTML`/URLs still use the built-in policy when `sanitize` is true). Treat `onPasteHtml` as a full trust boundary for paste: return only safe HTML.
 
 ```tsx
 <EmailEditor onPasteHtml={(html) => mySanitize(html)} />

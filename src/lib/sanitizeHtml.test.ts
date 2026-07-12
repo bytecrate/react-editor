@@ -27,6 +27,20 @@ describe('isSafeUrl / sanitizeUrl', () => {
     expect(isSafeUrl('   ')).toBe(false);
   });
 
+  it('rejects javascript with tab/LF/CR injection (WHATWG strips those chars)', () => {
+    expect(isSafeUrl('java\tscript:alert(1)')).toBe(false);
+    expect(isSafeUrl('java\nscript:alert(1)')).toBe(false);
+    expect(isSafeUrl('java\rscript:alert(1)')).toBe(false);
+    expect(isSafeUrl('javascript\t:alert(1)')).toBe(false);
+    expect(sanitizeUrl('java\tscript:alert(1)')).toBeNull();
+  });
+
+  it('rejects data:image/svg+xml and allows common raster data images', () => {
+    expect(isSafeUrl('data:image/svg+xml,<svg></svg>')).toBe(false);
+    expect(isSafeUrl('data:image/png;base64,abc')).toBe(true);
+    expect(isSafeUrl('data:image/jpeg;base64,abc')).toBe(true);
+  });
+
   it('sanitizeUrl returns trimmed safe urls or null', () => {
     expect(sanitizeUrl('  https://example.com  ')).toBe('https://example.com');
     expect(sanitizeUrl('{{unsubscribe}}')).toBe('{{unsubscribe}}');
@@ -85,9 +99,36 @@ describe('sanitizeEmailHtml', () => {
     expect(out).toMatch(/color:\s*red/i);
   });
 
-  it('strips dangerous style expressions', () => {
-    const out = sanitizeEmailHtml('<p style="color:red; expression(alert(1))">x</p>');
+  it('strips dangerous style expressions and url() values', () => {
+    const out = sanitizeEmailHtml(
+      '<p style="color:red; expression(alert(1)); background-color: blue">x</p>'
+    );
     expect(out).not.toMatch(/expression/i);
+    expect(out).toMatch(/color:\s*red/i);
+    expect(out).toMatch(/background-color:\s*blue/i);
+
+    const withUrl = sanitizeEmailHtml(
+      '<p style="background-color:red; color: url(javascript:alert(1))">x</p>'
+    );
+    expect(withUrl).not.toMatch(/url\s*\(/i);
+  });
+
+  it('does not allow background shorthand with url()', () => {
+    const out = sanitizeEmailHtml(
+      '<p style="background: url(data:text/html,x); color:blue">x</p>'
+    );
+    expect(out).not.toMatch(/background\s*:/i);
+    expect(out).not.toMatch(/data:text\/html/i);
+    expect(out).toMatch(/color:\s*blue/i);
+  });
+
+  it('adds rel=noopener noreferrer for target=_blank links', () => {
+    const out = sanitizeEmailHtml(
+      '<a href="https://example.com" target="_blank">x</a>'
+    );
+    expect(out).toMatch(/target=["']_blank["']/i);
+    expect(out).toMatch(/rel=["'][^"']*noopener/i);
+    expect(out).toMatch(/noreferrer/i);
   });
 
   it('removes iframe, object, embed, form, and style tags', () => {
