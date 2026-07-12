@@ -12,6 +12,8 @@ A lightweight, robust, and feature-rich React email template editor. Built with 
 *   **Media & Links**: Image insertion via URL, File Upload (Base64 default, custom async upload supported), and Hyperlink management.
 *   **Templating**: Built-in Variable/Merge Tag insertion support (e.g., `{{firstName}}`).
 *   **History**: Undo/Redo functionality.
+*   **Keyboard shortcuts**: Mod+B/I/U for formatting, Mod+K for links, Mod+Z / Mod+Shift+Z / Mod+Y for undo/redo (disable with `enableShortcuts={false}`).
+*   **Accessibility baseline**: Named toolbar controls, labeled editor surface, picker dialogs/menus, and Escape-to-close.
 *   **Paste / HTML sanitization**: By default, paste and external HTML entry points strip common unsafe patterns (scripts, event handlers, dangerous URLs) while keeping email-friendly markup and merge tags.
 *   **Zero Styles Configuration**: Works out of the box with internal styling, but accepts external classes.
 
@@ -149,6 +151,34 @@ Optional paste override (replaces the built-in sanitizer for **clipboard HTML on
 <EmailEditor onPasteHtml={(html) => mySanitize(html)} />
 ```
 
+## Accessibility
+
+The toolbar uses `role="toolbar"` and icon buttons expose accessible names via `aria-label` (and `aria-pressed` for toggles). The content surface is a multiline `textbox` labeled by `ariaLabel`, falling back to `placeholder`, then `"Email content"`.
+
+```tsx
+<EmailEditor
+  ariaLabel="Newsletter body"
+  placeholder="Start crafting your email..."
+/>
+```
+
+Picker dropdowns use `aria-expanded` / `aria-haspopup` on triggers and `role="dialog"` or `role="menu"` on panels. Press **Escape** to close an open picker and return focus to its trigger.
+
+## Keyboard shortcuts
+
+When focus is inside the editor surface (`enableShortcuts` defaults to `true`), the following shortcuts apply. **Mod** is ⌘ on macOS and Ctrl elsewhere.
+
+| Shortcut | Action |
+|----------|--------|
+| Mod+B | Bold |
+| Mod+I | Italic |
+| Mod+U | Underline |
+| Mod+K | Open link picker (selection is saved first) |
+| Mod+Z | Undo |
+| Mod+Shift+Z / Mod+Y | Redo |
+
+Shortcuts are not handled while typing in toolbar inputs (link URL, color picker, selects). Disable with `enableShortcuts={false}` if the host app provides its own bindings.
+
 ## Props API
 
 | Prop | Type | Default | Description |
@@ -157,7 +187,9 @@ Optional paste override (replaces the built-in sanitizer for **clipboard HTML on
 | `value` | `string` | `-` | Controlled HTML. When set, DOM syncs when the string changes. |
 | `onChange` | `(html: string) => void` | `-` | Callback fired whenever content changes (including `ref.setHTML` / `clear`). |
 | `variables` | `Array<{ label: string, value: string }>` | `DEFAULT_VARIABLES` | Array of variables for the insert dropdown. |
-| `placeholder` | `string` | `"Start writing..."` | Placeholder text shown when empty. |
+| `placeholder` | `string` | `"Start writing..."` | Placeholder text shown when empty; also used as the surface accessible name when `ariaLabel` is omitted. |
+| `ariaLabel` | `string` | `-` | Accessible name for the contenteditable surface (overrides `placeholder` for a11y). |
+| `enableShortcuts` | `boolean` | `true` | Handle Mod+B/I/U/K/Z (and redo) while the editor surface is focused. |
 | `defaultPadding` | `string` | `"24px"` | Default padding applied to the main container. |
 | `onImageUpload` | `(file: File) => Promise<string>` | `-` | Callback to handle custom image uploads (overrides Base64). |
 | `sanitize` | `boolean` | `true` | Sanitize paste, external HTML, and block dangerous link/image URLs. Set `false` only for trusted admin tools. |

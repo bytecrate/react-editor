@@ -37,6 +37,16 @@ export interface EmailEditorProps {
   style?: React.CSSProperties;
   className?: string;
   placeholder?: string;
+  /**
+   * Accessible name for the contenteditable surface.
+   * Defaults to `placeholder`, then `"Email content"`.
+   */
+  ariaLabel?: string;
+  /**
+   * When true (default), handle common formatting shortcuts (Mod+B/I/U/K/Z, etc.)
+   * while focus is inside the editor surface.
+   */
+  enableShortcuts?: boolean;
   variables?: Variable[];
   defaultPadding?: string;
   /**

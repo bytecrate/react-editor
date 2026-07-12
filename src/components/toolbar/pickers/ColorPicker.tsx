@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Palette } from "lucide-react";
 import { PRESET_COLORS } from "../../../constants";
 
@@ -17,16 +17,23 @@ export function ColorPicker({
   onPick,
   containerRef,
 }: ColorPickerProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
   return (
     <div className="ree-dropdown-container" ref={containerRef}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={onToggle}
         className={`ree-btn ${show ? "active" : ""}`}
         title="Text Color"
+        aria-label="Text Color"
+        aria-expanded={show}
+        aria-haspopup="dialog"
       >
         <Palette
           size={18}
+          aria-hidden="true"
           style={{
             color:
               activeColor && activeColor !== "rgb(0, 0, 0)" && activeColor !== "#000000"
@@ -37,7 +44,19 @@ export function ColorPicker({
       </button>
 
       {show && (
-        <div className="ree-popup" style={{ width: "220px" }}>
+        <div
+          className="ree-popup"
+          role="dialog"
+          aria-label="Text color"
+          style={{ width: "220px" }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              onToggle();
+              triggerRef.current?.focus();
+            }
+          }}
+        >
           <div className="ree-label">Presets</div>
           <div className="ree-grid">
             {PRESET_COLORS.map((color) => (
@@ -51,6 +70,7 @@ export function ColorPicker({
                   onPick(color);
                 }}
                 title={color}
+                aria-label={color}
               />
             ))}
           </div>
@@ -64,6 +84,7 @@ export function ColorPicker({
                   onPick(e.target.value);
                 }}
                 title="Choose custom color"
+                aria-label="Choose custom color"
               />
             </div>
           </div>

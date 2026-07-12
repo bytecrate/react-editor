@@ -3,6 +3,7 @@ import React from "react";
 interface ToolbarButtonProps {
   icon: React.ComponentType<any>;
   onMouseDown: (e: React.MouseEvent) => void;
+  /** When provided, marks this as a toggle and sets aria-pressed. */
   isActive?: boolean;
   label?: string;
 }
@@ -10,7 +11,7 @@ interface ToolbarButtonProps {
 export const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   icon: Icon,
   onMouseDown,
-  isActive = false,
+  isActive,
   label
 }) => {
   return (
@@ -22,8 +23,10 @@ export const ToolbarButton: React.FC<ToolbarButtonProps> = ({
       }}
       className={`ree-btn ${isActive ? 'active' : ''}`}
       title={label}
+      aria-label={label}
+      aria-pressed={isActive !== undefined ? isActive : undefined}
     >
-      <Icon size={18} />
+      <Icon size={18} aria-hidden="true" />
     </button>
   );
 };

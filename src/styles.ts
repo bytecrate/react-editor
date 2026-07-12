@@ -57,6 +57,11 @@ export const EDITOR_STYLES = `
     color: #2563eb;
   }
 
+  .ree-btn:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
   .ree-select-wrapper {
     position: relative;
     display: flex;
@@ -81,6 +86,11 @@ export const EDITOR_STYLES = `
   .ree-select:hover {
     background-color: #f3f4f6;
     border-color: #e5e7eb;
+  }
+
+  .ree-select:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
   }
 
   .ree-chevron {
@@ -189,6 +199,11 @@ export const EDITOR_STYLES = `
     color: #2563eb;
   }
 
+  .ree-list-btn:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
   .ree-pad-row {
     display: flex;
     align-items: center;
@@ -226,6 +241,11 @@ export const EDITOR_STYLES = `
     background-color: #e5e7eb;
   }
 
+  .ree-pad-btn:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
   .ree-pad-val {
     font-size: 12px;
     font-weight: 500;
@@ -246,6 +266,11 @@ export const EDITOR_STYLES = `
     height: 100%;
     outline: none;
     overflow-y: auto;
+  }
+
+  .ree-content:focus-visible {
+    /* Prefer caret-only chrome; subtle ring for keyboard users if needed by host CSS */
+    box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.2);
   }
 
   .ree-placeholder {

@@ -241,4 +241,92 @@ describe('EmailEditor', () => {
 
     expect(screen.queryByText('Username')).toBeNull();
   });
+
+  it('exposes toolbar buttons by accessible name', () => {
+    render(<EmailEditor />);
+
+    expect(screen.getByRole('button', { name: 'Bold' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Italic' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDefined();
+  });
+
+  it('labels the editor surface as a multiline textbox', () => {
+    render(<EmailEditor placeholder="Write your email" />);
+
+    const textbox = screen.getByRole('textbox', { name: 'Write your email' });
+    expect(textbox).toBeDefined();
+    expect(textbox.getAttribute('aria-multiline')).toBe('true');
+  });
+
+  it('uses ariaLabel when provided for the editor surface', () => {
+    render(<EmailEditor ariaLabel="Campaign body" placeholder="ignored for a11y" />);
+
+    expect(screen.getByRole('textbox', { name: 'Campaign body' })).toBeDefined();
+  });
+
+  it('exposes a formatting toolbar landmark', () => {
+    render(<EmailEditor />);
+
+    expect(screen.getByRole('toolbar', { name: 'Formatting' })).toBeDefined();
+  });
+
+  it('runs bold via Mod+B when the editor surface is focused', () => {
+    render(<EmailEditor />);
+
+    const content = document.querySelector('.ree-content') as HTMLElement;
+    expect(content).not.toBeNull();
+    content.focus();
+
+    fireEvent.keyDown(content, { key: 'b', ctrlKey: true });
+
+    expect(document.execCommand).toHaveBeenCalledWith('bold', false, undefined);
+  });
+
+  it('closes the variables menu on Escape and returns focus to the trigger', () => {
+    render(
+      <EmailEditor variables={[{ label: 'Username', value: '{{username}}' }]} />
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Insert Variable' });
+    fireEvent.click(trigger);
+    expect(screen.getByText('Username')).toBeDefined();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByText('Username')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('closes the link picker on Escape and resets the trigger label', () => {
+    render(<EmailEditor initialValue="<p>Hello</p>" />);
+
+    // Select text so openLinkPicker can treat it as a potential link edit context
+    const hello = screen.getByText('Hello');
+    const range = document.createRange();
+    range.selectNodeContents(hello);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Link' }));
+    expect(screen.getByPlaceholderText(/https/)).toBeDefined();
+
+    fireEvent.keyDown(screen.getByPlaceholderText(/https/), { key: 'Escape' });
+
+    expect(screen.queryByPlaceholderText(/https/)).toBeNull();
+    // onClose must clear isEditingLink so the closed trigger is "Link", not "Edit Link"
+    expect(screen.getByRole('button', { name: 'Link' })).toBeDefined();
+  });
+
+  it('does not handle shortcuts when enableShortcuts is false', () => {
+    const execSpy = vi.mocked(document.execCommand);
+    execSpy.mockClear();
+
+    render(<EmailEditor enableShortcuts={false} />);
+
+    const content = document.querySelector('.ree-content') as HTMLElement;
+    fireEvent.keyDown(content, { key: 'b', ctrlKey: true });
+
+    expect(execSpy).not.toHaveBeenCalledWith('bold', false, undefined);
+  });
 });

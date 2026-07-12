@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Braces } from "lucide-react";
 import type { Variable } from "../../../types";
 
@@ -17,19 +17,37 @@ export function VariablesPicker({
   onInsert,
   containerRef,
 }: VariablesPickerProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
   return (
     <div className="ree-dropdown-container" ref={containerRef}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={onToggle}
         className={`ree-btn ${show ? "active" : ""}`}
         title="Insert Variable"
+        aria-label="Insert Variable"
+        aria-expanded={show}
+        aria-haspopup="menu"
       >
-        <Braces size={18} />
+        <Braces size={18} aria-hidden="true" />
       </button>
 
       {show && (
-        <div className="ree-popup" style={{ width: "200px", padding: "0" }}>
+        <div
+          className="ree-popup"
+          role="menu"
+          aria-label="Insert Variable"
+          style={{ width: "200px", padding: "0" }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              onToggle();
+              triggerRef.current?.focus();
+            }
+          }}
+        >
           <div
             className="ree-label"
             style={{ padding: "8px 12px", borderBottom: "1px solid #e5e7eb", margin: 0 }}
@@ -41,6 +59,8 @@ export function VariablesPicker({
               variables.map((variable) => (
                 <button
                   key={variable.value}
+                  type="button"
+                  role="menuitem"
                   className="ree-list-btn"
                   onMouseDown={(e) => {
                     e.preventDefault();
