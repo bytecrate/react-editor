@@ -72,7 +72,8 @@ export interface EditorToolbarProps {
   showImagePicker: boolean;
   setShowImagePicker: (show: boolean) => void;
   handleImageUploadClick: () => void;
-  handleImageUrlClick: () => void;
+  handleInsertImageUrl: (url: string, alt: string) => void;
+  defaultImageAlt?: string;
   imagePickerRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -112,7 +113,8 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
     showImagePicker,
     setShowImagePicker,
     handleImageUploadClick,
-    handleImageUrlClick,
+    handleInsertImageUrl,
+    defaultImageAlt,
     imagePickerRef,
   } = props;
 
@@ -260,7 +262,8 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
             show={showImagePicker}
             onToggle={() => setShowImagePicker(!showImagePicker)}
             onUploadClick={handleImageUploadClick}
-            onUrlClick={handleImageUrlClick}
+            onInsertUrl={handleInsertImageUrl}
+            defaultAlt={defaultImageAlt}
             containerRef={imagePickerRef}
           />
         );

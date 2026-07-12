@@ -307,6 +307,81 @@ export const EDITOR_STYLES = `
   .ree-handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
   .ree-handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
 
+  /* Selected-image properties bar (alt + link wrap) */
+  .ree-image-props {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    pointer-events: auto;
+    z-index: 42;
+    min-width: 220px;
+    max-width: min(360px, 90vw);
+  }
+
+  .ree-image-props-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1 1 100px;
+    min-width: 100px;
+  }
+
+  .ree-image-props-field label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .ree-image-props-field input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    outline: none;
+    background: #fff;
+  }
+
+  .ree-image-props-field input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  }
+
+  .ree-image-props-apply {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #fff;
+    background: #2563eb;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    align-self: flex-end;
+  }
+
+  .ree-image-props-apply:hover {
+    background: #1d4ed8;
+  }
+
+  .ree-image-props-apply:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
   /* Editor Content Styles */
   .ree-content ul { list-style-type: disc; padding-left: 1.5em; margin: 1em 0; }
   .ree-content ol { list-style-type: decimal; padding-left: 1.5em; margin: 1em 0; }

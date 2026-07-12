@@ -56,6 +56,17 @@ export interface EmailEditorProps {
    * If not provided, images will be converted to Base64.
    */
   onImageUpload?: (file: File) => Promise<string>;
+  /**
+   * Called when `onImageUpload` rejects. Hosts can surface UI (toasts, banners).
+   * The editor still logs the error to the console.
+   */
+  onImageUploadError?: (error: unknown) => void;
+  /**
+   * Default `alt` text applied to newly inserted images when the user does not
+   * supply one. Empty string is valid (decorative). Prefer meaningful defaults
+   * for accessibility and ESP lint rules.
+   */
+  defaultImageAlt?: string;
   toolbarConfig?: ToolbarConfig;
   /**
    * When true (default), sanitize paste, seed HTML, controlled `value`, and

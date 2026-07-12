@@ -69,15 +69,26 @@ export function useImageResizer(
     return () => window.removeEventListener('resize', handleResize);
   }, [selectedImg, updateResizer]);
 
-  // Handle click outside images (except on color/padding picker etc which are handled by their own hooks/effects)
+  // Handle click outside images (except resizer chrome / image props UI)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Deselect image if clicking outside image and outside resizer
-      if (selectedImg && contentRef.current?.contains(event.target as Node)) {
-        if (event.target !== selectedImg) {
+      if (!selectedImg) return;
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      // Keep selection when interacting with resizer handles or image properties bar
+      if (target instanceof Element) {
+        if (target.closest(".ree-resizer") || target.closest(".ree-image-props")) {
+          return;
+        }
+      }
+
+      // Deselect image if clicking outside image and outside resizer chrome
+      if (contentRef.current?.contains(target)) {
+        if (target !== selectedImg) {
           setSelectedImg(null);
         }
-      } else if (selectedImg && !contentRef.current?.contains(event.target as Node)) {
+      } else {
         // Clicked totally outside editor
         setSelectedImg(null);
       }
