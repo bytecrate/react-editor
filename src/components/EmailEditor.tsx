@@ -1,16 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback, useImperativeHandle } from "react";
-import {
-  Bold, Italic, Underline, Strikethrough,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered,
-  Heading1, Heading2, Quote, Undo, Redo, Eraser,
-  Type,
-} from "lucide-react";
 
-import { EmailEditorProps, EmailEditorRef, ToolbarConfig, ToolbarItem } from "../types";
-import { FONT_FAMILIES, FONT_SIZES, DEFAULT_VARIABLES } from "../constants";
+import { EmailEditorProps, EmailEditorRef } from "../types";
+import { DEFAULT_VARIABLES } from "../constants";
 import { EDITOR_STYLES } from "../styles";
-import { ToolbarButton } from "./ToolbarButton";
 import { useImageResizer } from "../hooks/useImageResizer";
 import { sanitizeEmailHtml, sanitizeUrl } from "../lib/sanitizeHtml";
 import {
@@ -22,25 +14,7 @@ import {
   saveSelection,
   restoreSelection,
 } from "../lib/editorDom";
-import { VariablesPicker } from "./toolbar/pickers/VariablesPicker";
-import { ColorPicker } from "./toolbar/pickers/ColorPicker";
-import { PaddingPicker } from "./toolbar/pickers/PaddingPicker";
-import { ImagePicker } from "./toolbar/pickers/ImagePicker";
-import { LinkPicker } from "./toolbar/pickers/LinkPicker";
-
-const DEFAULT_TOOLBAR: ToolbarConfig = [
-  ['undo', 'redo'],
-  ['fontFamily'],
-  ['fontSize'],
-  ['padding'],
-  ['color'],
-  ['variables'],
-  ['h1', 'h2', 'p'],
-  ['bold', 'italic', 'underline', 'strikeThrough'],
-  ['justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull'],
-  ['unorderedList', 'orderedList'],
-  ['link', 'image', 'blockquote', 'removeFormat']
-];
+import { EditorToolbar, DEFAULT_TOOLBAR } from "./toolbar/EditorToolbar";
 
 export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(function EmailEditor(
   {
@@ -476,165 +450,6 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     handleInput();
   };
 
-  const renderToolbarItem = (item: ToolbarItem) => {
-    switch (item) {
-      case 'undo':
-        return <ToolbarButton key="undo" icon={Undo} onMouseDown={() => execCommand("undo")} label="Undo" />;
-      case 'redo':
-        return <ToolbarButton key="redo" icon={Redo} onMouseDown={() => execCommand("redo")} label="Redo" />;
-      case 'fontFamily':
-        return (
-          <div key="fontFamily" className="ree-select-wrapper">
-             <select
-              className="ree-select"
-              value={currentFont}
-              onChange={(e) => execCommand('fontName', e.target.value)}
-              title="Font Family"
-              style={{ width: '130px', fontFamily: currentFont }}
-            >
-              {FONT_FAMILIES.map((font) => (
-                <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                  {font.label}
-                </option>
-              ))}
-            </select>
-            <div className="ree-chevron">
-              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-        );
-      case 'fontSize':
-        return (
-          <div key="fontSize" className="ree-select-wrapper">
-             <select
-              className="ree-select"
-              value={currentFontSize}
-              onChange={(e) => execFontSize(e.target.value)}
-              title="Font Size"
-              style={{ width: '80px' }}
-            >
-              {FONT_SIZES.map((size) => (
-                <option key={size.value} value={size.value}>
-                  {size.label}
-                </option>
-              ))}
-            </select>
-            <div className="ree-chevron">
-              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-        );
-      case 'padding':
-        return (
-          <PaddingPicker
-            key="padding"
-            paddings={paddings}
-            updatePadding={updatePadding}
-            show={showPaddingPicker}
-            onToggle={() => setShowPaddingPicker(!showPaddingPicker)}
-            containerRef={paddingPickerRef}
-          />
-        );
-      case 'color':
-        return (
-          <ColorPicker
-            key="color"
-            activeColor={activeColor}
-            show={showColorPicker}
-            onToggle={() => setShowColorPicker(!showColorPicker)}
-            onPick={(color) => {
-              execCommand('foreColor', color);
-              setShowColorPicker(false);
-            }}
-            containerRef={colorPickerRef}
-          />
-        );
-      case 'variables':
-        return (
-          <VariablesPicker
-            key="variables"
-            variables={variables}
-            show={showVariables}
-            onToggle={() => setShowVariables(!showVariables)}
-            onInsert={insertVariable}
-            containerRef={variablesRef}
-          />
-        );
-      case 'h1':
-        return <ToolbarButton key="h1" icon={Heading1} onMouseDown={() => execCommand("formatBlock", "H1")} label="Heading 1" />;
-      case 'h2':
-        return <ToolbarButton key="h2" icon={Heading2} onMouseDown={() => execCommand("formatBlock", "H2")} label="Heading 2" />;
-      case 'p':
-        return <ToolbarButton key="p" icon={Type} onMouseDown={() => execCommand("formatBlock", "P")} label="Paragraph" />;
-      case 'bold':
-        return <ToolbarButton key="bold" icon={Bold} onMouseDown={() => execCommand("bold")} isActive={activeFormats.includes('bold')} label="Bold" />;
-      case 'italic':
-        return <ToolbarButton key="italic" icon={Italic} onMouseDown={() => execCommand("italic")} isActive={activeFormats.includes('italic')} label="Italic" />;
-      case 'underline':
-        return <ToolbarButton key="underline" icon={Underline} onMouseDown={() => execCommand("underline")} isActive={activeFormats.includes('underline')} label="Underline" />;
-      case 'strikeThrough':
-        return <ToolbarButton key="strikeThrough" icon={Strikethrough} onMouseDown={() => execCommand("strikeThrough")} isActive={activeFormats.includes('strikeThrough')} label="Strikethrough" />;
-      case 'justifyLeft':
-        return <ToolbarButton key="justifyLeft" icon={AlignLeft} onMouseDown={() => execCommand("justifyLeft")} isActive={activeFormats.includes('justifyLeft')} label="Align Left" />;
-      case 'justifyCenter':
-        return <ToolbarButton key="justifyCenter" icon={AlignCenter} onMouseDown={() => execCommand("justifyCenter")} isActive={activeFormats.includes('justifyCenter')} label="Align Center" />;
-      case 'justifyRight':
-        return <ToolbarButton key="justifyRight" icon={AlignRight} onMouseDown={() => execCommand("justifyRight")} isActive={activeFormats.includes('justifyRight')} label="Align Right" />;
-      case 'justifyFull':
-        return <ToolbarButton key="justifyFull" icon={AlignJustify} onMouseDown={() => execCommand("justifyFull")} isActive={activeFormats.includes('justifyFull')} label="Justify" />;
-      case 'unorderedList':
-        return <ToolbarButton key="unorderedList" icon={List} onMouseDown={() => execCommand("insertUnorderedList")} isActive={activeFormats.includes('insertUnorderedList')} label="Bullet List" />;
-      case 'orderedList':
-        return <ToolbarButton key="orderedList" icon={ListOrdered} onMouseDown={() => execCommand("insertOrderedList")} isActive={activeFormats.includes('insertOrderedList')} label="Ordered List" />;
-      case 'link':
-        return (
-          <LinkPicker
-            key="link"
-            linkUrl={linkUrl}
-            setLinkUrl={setLinkUrl}
-            isEditingLink={isEditingLink}
-            isActive={activeFormats.includes('createLink')}
-            show={showLinkPicker}
-            variables={variables}
-            applyLink={applyLink}
-            removeLink={removeLink}
-            applyLinkVariable={applyLinkVariable}
-            onOpen={openLinkPicker}
-            onClose={() => setShowLinkPicker(false)}
-            containerRef={linkPickerRef}
-          />
-        );
-      case 'image':
-        return (
-          <ImagePicker
-            key="image"
-            show={showImagePicker}
-            onToggle={() => setShowImagePicker(!showImagePicker)}
-            onUploadClick={handleImageUploadClick}
-            onUrlClick={handleImageUrlClick}
-            containerRef={imagePickerRef}
-          />
-        );
-      case 'blockquote':
-        return <ToolbarButton key="blockquote" icon={Quote} onMouseDown={() => execCommand("formatBlock", "BLOCKQUOTE")} label="Quote" />;
-      case 'removeFormat':
-        return <ToolbarButton key="removeFormat" icon={Eraser} onMouseDown={() => execCommand("removeFormat")} label="Clear Formatting" />;
-      default:
-        return null;
-    }
-  };
-
-  const normalizedConfig = toolbarConfig.map((group) => {
-    if (Array.isArray(group)) {
-      return group;
-    }
-    return [group];
-  });
-
   return (
     <div className={`ree-container ${className}`} style={style}>
       <style>{EDITOR_STYLES}</style>
@@ -648,22 +463,43 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
         style={{ display: 'none' }}
       />
       
-      {/* Toolbar */}
-      <div className="ree-toolbar">
-        {normalizedConfig.map((group, groupIdx) => {
-          const renderedItems = group
-            .map(item => renderToolbarItem(item))
-            .filter(item => item !== null);
-
-          if (renderedItems.length === 0) return null;
-
-          return (
-            <div key={groupIdx} className="ree-group">
-              {renderedItems}
-            </div>
-          );
-        })}
-      </div>
+      <EditorToolbar
+        config={toolbarConfig}
+        execCommand={execCommand}
+        execFontSize={execFontSize}
+        activeFormats={activeFormats}
+        currentFont={currentFont}
+        currentFontSize={currentFontSize}
+        paddings={paddings}
+        updatePadding={updatePadding}
+        showPaddingPicker={showPaddingPicker}
+        setShowPaddingPicker={setShowPaddingPicker}
+        paddingPickerRef={paddingPickerRef}
+        activeColor={activeColor}
+        showColorPicker={showColorPicker}
+        setShowColorPicker={setShowColorPicker}
+        colorPickerRef={colorPickerRef}
+        variables={variables}
+        showVariables={showVariables}
+        setShowVariables={setShowVariables}
+        insertVariable={insertVariable}
+        variablesRef={variablesRef}
+        linkUrl={linkUrl}
+        setLinkUrl={setLinkUrl}
+        isEditingLink={isEditingLink}
+        showLinkPicker={showLinkPicker}
+        setShowLinkPicker={setShowLinkPicker}
+        applyLink={applyLink}
+        removeLink={removeLink}
+        applyLinkVariable={applyLinkVariable}
+        openLinkPicker={openLinkPicker}
+        linkPickerRef={linkPickerRef}
+        showImagePicker={showImagePicker}
+        setShowImagePicker={setShowImagePicker}
+        handleImageUploadClick={handleImageUploadClick}
+        handleImageUrlClick={handleImageUrlClick}
+        imagePickerRef={imagePickerRef}
+      />
 
       {/* Editor Surface */}
       <div 
