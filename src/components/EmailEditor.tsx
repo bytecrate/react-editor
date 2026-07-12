@@ -1,15 +1,16 @@
-import React, { useState, useRef, useEffect, useCallback, useImperativeHandle } from "react";
+import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, useId } from "react";
 
 import { EmailEditorProps, EmailEditorRef } from "../types";
 import { DEFAULT_VARIABLES } from "../constants";
 import { EDITOR_STYLES } from "../styles";
 import { useImageResizer } from "../hooks/useImageResizer";
 import { useEditorCommands } from "../hooks/useEditorCommands";
-import { sanitizeEmailHtml } from "../lib/sanitizeHtml";
+import { sanitizeEmailHtml, sanitizeUrl } from "../lib/sanitizeHtml";
 import {
   isEditorDomEmpty,
   placeholderInsetFromPadding,
   getSelectedBlock,
+  unwrapLink,
 } from "../lib/editorDom";
 import { EditorToolbar, DEFAULT_TOOLBAR } from "./toolbar/EditorToolbar";
 
@@ -26,6 +27,8 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     variables = DEFAULT_VARIABLES,
     defaultPadding = "24px",
     onImageUpload,
+    onImageUploadError,
+    defaultImageAlt = "",
     toolbarConfig = DEFAULT_TOOLBAR,
     sanitize = true,
     onPasteHtml,
@@ -67,6 +70,11 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
   const [showLinkPicker, setShowLinkPicker] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [isEditingLink, setIsEditingLink] = useState(false);
+  // Local form state for selected-image properties (alt + link wrap)
+  const [imageAltDraft, setImageAltDraft] = useState("");
+  const [imageLinkDraft, setImageLinkDraft] = useState("");
+  const imageAltInputId = useId();
+  const imageLinkInputId = useId();
 
   const updateActiveFormats = useCallback(() => {
     const formats: string[] = [];
@@ -155,6 +163,75 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     () => {
       handleInput(); // Save state on resize end
     }
+  );
+
+  // Sync image property drafts when selection changes
+  useEffect(() => {
+    if (selectedImg) {
+      setImageAltDraft(selectedImg.getAttribute("alt") ?? "");
+      const parent = selectedImg.parentElement;
+      setImageLinkDraft(
+        parent instanceof HTMLAnchorElement ? parent.getAttribute("href") ?? "" : ""
+      );
+    } else {
+      setImageAltDraft("");
+      setImageLinkDraft("");
+    }
+  }, [selectedImg]);
+
+  const applySelectedImageAlt = useCallback(
+    (alt: string) => {
+      if (!selectedImg) return;
+      selectedImg.setAttribute("alt", alt);
+      setImageAltDraft(alt);
+      handleInput();
+    },
+    [selectedImg, handleInput]
+  );
+
+  const applySelectedImageLink = useCallback(
+    (hrefRaw: string) => {
+      if (!selectedImg) return;
+      const raw = hrefRaw.trim();
+      const parent = selectedImg.parentElement;
+
+      if (!raw) {
+        // Empty href: unwrap if currently inside a link
+        if (parent instanceof HTMLAnchorElement) {
+          unwrapLink(parent);
+          handleInput();
+        }
+        setImageLinkDraft("");
+        return;
+      }
+
+      const href = sanitize === false ? raw : sanitizeUrl(raw);
+      if (href === null) {
+        // Reject dangerous schemes; restore draft to current valid href if any
+        const existing =
+          parent instanceof HTMLAnchorElement
+            ? parent.getAttribute("href") ?? ""
+            : "";
+        setImageLinkDraft(existing);
+        return;
+      }
+
+      if (parent instanceof HTMLAnchorElement) {
+        parent.setAttribute("href", href);
+        parent.setAttribute("target", "_blank");
+        parent.setAttribute("rel", "noopener noreferrer");
+      } else {
+        const anchor = document.createElement("a");
+        anchor.setAttribute("href", href);
+        anchor.setAttribute("target", "_blank");
+        anchor.setAttribute("rel", "noopener noreferrer");
+        selectedImg.parentNode?.insertBefore(anchor, selectedImg);
+        anchor.appendChild(selectedImg);
+      }
+      setImageLinkDraft(href);
+      handleInput();
+    },
+    [selectedImg, sanitize, handleInput]
   );
 
   /** Sanitize external HTML when the sanitize prop is enabled (default). */
@@ -292,7 +369,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     removeLink,
     applyLinkVariable,
     handleImageUploadClick,
-    handleImageUrlClick,
+    handleInsertImageUrl,
     handleImageSelection,
     handlePaste,
   } = useEditorCommands({
@@ -304,6 +381,8 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     sanitize,
     onPasteHtml,
     onImageUpload,
+    onImageUploadError,
+    defaultImageAlt,
     linkUrl,
     setLinkUrl,
     showLinkPicker,
@@ -412,7 +491,8 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
         showImagePicker={showImagePicker}
         setShowImagePicker={setShowImagePicker}
         handleImageUploadClick={handleImageUploadClick}
-        handleImageUrlClick={handleImageUrlClick}
+        handleInsertImageUrl={handleInsertImageUrl}
+        defaultImageAlt={defaultImageAlt}
         imagePickerRef={imagePickerRef}
       />
 
@@ -450,11 +530,74 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
            <div className="ree-placeholder" style={{ top: placeholderInset, left: placeholderInset }}>{placeholder}</div>
         )}
 
-        {/* Resizer Overlay */}
+        {/* Resizer Overlay + selected-image properties */}
         <div 
            ref={resizerRef}
            className={`ree-resizer ${selectedImg ? 'active' : ''}`}
         >
+           {selectedImg && (
+             <div
+               className="ree-image-props"
+               role="group"
+               aria-label="Image properties"
+               onMouseDown={(e) => e.stopPropagation()}
+             >
+               <div className="ree-image-props-field">
+                 <label htmlFor={imageAltInputId}>Alt text</label>
+                 <input
+                   id={imageAltInputId}
+                   type="text"
+                   value={imageAltDraft}
+                   onChange={(e) => {
+                     const next = e.target.value;
+                     setImageAltDraft(next);
+                     // Live-update the attribute for a11y preview; emit onChange
+                     // on blur/Enter/Apply to avoid controlled-mode thrash mid-edit
+                     if (selectedImg) {
+                       selectedImg.setAttribute("alt", next);
+                     }
+                   }}
+                   onBlur={() => applySelectedImageAlt(imageAltDraft)}
+                   onKeyDown={(e) => {
+                     if (e.key === "Enter") {
+                       e.preventDefault();
+                       applySelectedImageAlt(imageAltDraft);
+                     }
+                   }}
+                   placeholder="Alt text"
+                   aria-label="Selected image alt text"
+                 />
+               </div>
+               <div className="ree-image-props-field">
+                 <label htmlFor={imageLinkInputId}>Link URL</label>
+                 <input
+                   id={imageLinkInputId}
+                   type="text"
+                   value={imageLinkDraft}
+                   onChange={(e) => setImageLinkDraft(e.target.value)}
+                   onKeyDown={(e) => {
+                     if (e.key === "Enter") {
+                       e.preventDefault();
+                       applySelectedImageLink(imageLinkDraft);
+                     }
+                   }}
+                   placeholder="https://… (empty to unwrap)"
+                   aria-label="Selected image link URL"
+                 />
+               </div>
+               <button
+                 type="button"
+                 className="ree-image-props-apply"
+                 onMouseDown={(e) => {
+                   e.preventDefault();
+                   applySelectedImageAlt(imageAltDraft);
+                   applySelectedImageLink(imageLinkDraft);
+                 }}
+               >
+                 Apply
+               </button>
+             </div>
+           )}
            <div className="ree-resize-handle ree-handle-nw" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} />
            <div className="ree-resize-handle ree-handle-ne" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} />
            <div className="ree-resize-handle ree-handle-sw" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} />

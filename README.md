@@ -106,9 +106,24 @@ By default, images selected from the device are converted to Base64 strings. To 
     
     const data = await response.json();
     return data.url; // Return the hosted image URL
-  }} 
+  }}
+  onImageUploadError={(err) => {
+    // Surface upload failures in your host UI (toast, banner, etc.)
+    console.error(err);
+  }}
+  defaultImageAlt="Product image"
 />
 ```
+
+### Alt text and link wrap
+
+Inserted images always get an `alt` attribute:
+
+* **URL insert** — the image picker collects URL and optional alt text.
+* **Device upload** — uses `defaultImageAlt` when set; otherwise the file name without extension (or empty string).
+* **Selected image** — click an image to open a small properties bar for live alt editing and optional link wrap. Empty link + Apply unwraps an existing anchor. Links use `target="_blank"` and `rel="noopener noreferrer"` (email clients vary on `target`; document as needed for your ESP).
+
+Empty `alt` is valid for decorative images; hosts should pass meaningful `defaultImageAlt` for accessibility and ESP lint rules.
 
 ## Custom Variables
 
@@ -192,6 +207,8 @@ Shortcuts are not handled while typing in toolbar inputs (link URL, color picker
 | `enableShortcuts` | `boolean` | `true` | Handle Mod+B/I/U/K/Z (and redo) while the editor surface is focused. |
 | `defaultPadding` | `string` | `"24px"` | Default padding applied to the main container. |
 | `onImageUpload` | `(file: File) => Promise<string>` | `-` | Callback to handle custom image uploads (overrides Base64). |
+| `onImageUploadError` | `(error: unknown) => void` | `-` | Called when `onImageUpload` rejects so hosts can show UI. |
+| `defaultImageAlt` | `string` | `""` | Default `alt` for newly inserted images when the user does not supply one. |
 | `sanitize` | `boolean` | `true` | Sanitize paste, external HTML, and block dangerous link/image URLs. Set `false` only for trusted admin tools. |
 | `onPasteHtml` | `(html: string) => string` | `-` | Optional paste transform; when set, used instead of the built-in sanitizer for clipboard HTML. |
 | `style` | `React.CSSProperties` | `-` | Inline styles for the outer editor container. |

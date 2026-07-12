@@ -18,6 +18,8 @@ export interface UseEditorCommandsOptions {
   sanitize: boolean;
   onPasteHtml?: (html: string) => string;
   onImageUpload?: (file: File) => Promise<string>;
+  onImageUploadError?: (error: unknown) => void;
+  defaultImageAlt?: string;
   // Link state
   linkUrl: string;
   setLinkUrl: (url: string) => void;
@@ -42,6 +44,8 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
     sanitize,
     onPasteHtml,
     onImageUpload,
+    onImageUploadError,
+    defaultImageAlt = "",
     linkUrl,
     setLinkUrl,
     showLinkPicker,
@@ -245,41 +249,92 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
     }
   }, [fileInputRef, setShowImagePicker]);
 
-  const insertImageIfSafe = useCallback(
-    (url: string) => {
+  /** Escape a string for use inside a double-quoted HTML attribute. */
+  const escapeAttr = (value: string) =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  /**
+   * Insert an image with alt text. Uses insertHTML for control over `alt`.
+   * Falls back to insertImage + setAttribute when insertHTML is unavailable.
+   * Returns true when an image was inserted.
+   */
+  const insertImageWithAlt = useCallback(
+    (url: string, alt: string = defaultImageAlt): boolean => {
       const safe = sanitize === false ? url.trim() : sanitizeUrl(url);
-      if (safe) {
-        execCommand("insertImage", safe);
+      if (!safe) return false;
+
+      // Escape both attributes — isSafeUrl allows quotes inside https: URLs
+      const safeSrc = escapeAttr(safe);
+      const safeAlt = escapeAttr(alt);
+      const html = `<img src="${safeSrc}" alt="${safeAlt}" />`;
+      const inserted = document.execCommand("insertHTML", false, html);
+
+      if (!inserted && contentRef.current) {
+        // Fallback: insertImage then set alt on the last matching img
+        document.execCommand("insertImage", false, safe);
+        const imgs = contentRef.current.querySelectorAll("img");
+        const last = imgs[imgs.length - 1];
+        if (last && (last.getAttribute("src") === safe || last.src === safe)) {
+          last.setAttribute("alt", alt);
+        }
       }
+
+      if (contentRef.current) {
+        contentRef.current.focus();
+      }
+      handleInput();
+      updateActiveFormats();
+      return true;
     },
-    [sanitize, execCommand]
+    [sanitize, defaultImageAlt, contentRef, handleInput, updateActiveFormats]
   );
 
-  const handleImageUrlClick = useCallback(() => {
-    setShowImagePicker(false);
-    const url = prompt("Enter Image URL:");
-    if (url) insertImageIfSafe(url);
-  }, [setShowImagePicker, insertImageIfSafe]);
+  const handleInsertImageUrl = useCallback(
+    (url: string, alt: string) => {
+      if (!url.trim()) return;
+      // Keep the picker open when the URL is rejected so the user can fix it
+      if (insertImageWithAlt(url, alt)) {
+        setShowImagePicker(false);
+      }
+    },
+    [setShowImagePicker, insertImageWithAlt]
+  );
+
+  /** Derive a reasonable default alt from a file name when none is configured. */
+  const altForFile = useCallback(
+    (file: File) => {
+      if (defaultImageAlt) return defaultImageAlt;
+      const base = file.name.replace(/\.[^.]+$/, "").trim();
+      return base || "";
+    },
+    [defaultImageAlt]
+  );
 
   const handleImageSelection = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
+        const alt = altForFile(file);
         if (onImageUpload) {
           try {
             const url = await onImageUpload(file);
             if (url) {
-              insertImageIfSafe(url);
+              insertImageWithAlt(url, alt);
             }
           } catch (err) {
             console.error("Error uploading image:", err);
+            onImageUploadError?.(err);
           }
         } else {
           const reader = new FileReader();
           reader.onload = (event) => {
             const base64 = event.target?.result as string;
             if (base64) {
-              insertImageIfSafe(base64);
+              insertImageWithAlt(base64, alt);
             }
           };
           reader.readAsDataURL(file);
@@ -290,7 +345,7 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
         fileInputRef.current.value = "";
       }
     },
-    [onImageUpload, insertImageIfSafe, fileInputRef]
+    [onImageUpload, onImageUploadError, insertImageWithAlt, altForFile, fileInputRef]
   );
 
   const handlePaste = useCallback(
@@ -334,8 +389,9 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
     removeLink,
     applyLinkVariable,
     handleImageUploadClick,
-    handleImageUrlClick,
+    handleInsertImageUrl,
     handleImageSelection,
+    insertImageWithAlt,
     handlePaste,
   };
 }
