@@ -18,6 +18,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,5 +46,32 @@ jobs:
       - name: Publish to NPM
         run: npm publish --provenance
 
-      - name: Push changes
-        run: git push origin HEAD --follow-tags
+      # master requires PRs (ruleset). Push the version commit + tag to a
+      # release branch and open a PR so master can be updated via review.
+      - name: Push release branch and open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="release/v${VERSION}"
+          DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+
+          git checkout -b "$BRANCH"
+          git push -u origin "HEAD:${BRANCH}" --follow-tags
+
+          if [ "$(gh pr list --head "$BRANCH" --base "$DEFAULT_BRANCH" --state open --json number --jq 'length')" = "0" ]; then
+            BODY=$(printf '%s\n' \
+              "Automated release after publishing \`@bytecrate/react-editor@${VERSION}\` to npm." \
+              "" \
+              "- Version bump is on branch \`${BRANCH}\`" \
+              "- Tag \`v${VERSION}\` was pushed with this release" \
+              "" \
+              "Merge this PR so \`${DEFAULT_BRANCH}\` stays in sync with the published package.")
+            gh pr create \
+              --base "$DEFAULT_BRANCH" \
+              --head "$BRANCH" \
+              --title "chore: release v${VERSION}" \
+              --body "$BODY"
+          else
+            echo "Open PR already exists for ${BRANCH}"
+          fi
