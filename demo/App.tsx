@@ -113,7 +113,6 @@ async function mockImageUpload(file: File): Promise<string> {
 export function App() {
   const [html, setHtml] = useState(SAMPLE_HTML);
   const [compactToolbar, setCompactToolbar] = useState(false);
-  const [editorKey, setEditorKey] = useState(0);
 
   const handleChange = useCallback((next: string) => {
     setHtml(next);
@@ -121,7 +120,6 @@ export function App() {
 
   const handleReset = () => {
     setHtml(SAMPLE_HTML);
-    setEditorKey((k) => k + 1);
   };
 
   return (
@@ -167,8 +165,8 @@ export function App() {
 
         <div style={cardStyles}>
           <EmailEditor
-            key={`${editorKey}-${compactToolbar ? 'compact' : 'full'}`}
-            initialValue={SAMPLE_HTML}
+            key={compactToolbar ? 'compact' : 'full'}
+            value={html}
             onChange={handleChange}
             variables={DEMO_VARIABLES}
             onImageUpload={mockImageUpload}

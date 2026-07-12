@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useImperativeHandle } from "react";
 import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -7,7 +7,7 @@ import {
   Type, Palette, Braces, Move, Plus, Minus
 } from "lucide-react";
 
-import { EmailEditorProps, ToolbarConfig, ToolbarItem } from "../types";
+import { EmailEditorProps, EmailEditorRef, ToolbarConfig, ToolbarItem } from "../types";
 import { FONT_FAMILIES, FONT_SIZES, PRESET_COLORS, DEFAULT_VARIABLES } from "../constants";
 import { EDITOR_STYLES } from "../styles";
 import { ToolbarButton } from "./ToolbarButton";
@@ -59,17 +59,21 @@ function placeholderInsetFromPadding(defaultPadding: string): number {
   return Number.isFinite(n) ? n : 24;
 }
 
-export const EmailEditor: React.FC<EmailEditorProps> = ({
-  initialValue = "",
-  onChange,
-  style,
-  className = "",
-  placeholder = "Start writing your email...",
-  variables = DEFAULT_VARIABLES,
-  defaultPadding = "24px",
-  onImageUpload,
-  toolbarConfig = DEFAULT_TOOLBAR
-}) => {
+export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(function EmailEditor(
+  {
+    initialValue = "",
+    value,
+    onChange,
+    style,
+    className = "",
+    placeholder = "Start writing your email...",
+    variables = DEFAULT_VARIABLES,
+    defaultPadding = "24px",
+    onImageUpload,
+    toolbarConfig = DEFAULT_TOOLBAR,
+  },
+  ref
+) {
   const contentRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const variablesRef = useRef<HTMLDivElement>(null);
@@ -79,12 +83,19 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
   const savedSelectionRef = useRef<Range | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resizerRef = useRef<HTMLDivElement>(null);
+  const isControlled = value !== undefined;
+  // Seed emptiness: controlled value wins over initialValue when both provided
+  const seedHtml = isControlled ? (value ?? "") : (initialValue ?? "");
   
   const [activeFormats, setActiveFormats] = useState<string[]>([]);
   const [currentFont, setCurrentFont] = useState<string>('Arial');
   const [currentFontSize, setCurrentFontSize] = useState<string>('16px');
   // Drive placeholder from React state — refs do not trigger re-renders
-  const [isEmpty, setIsEmpty] = useState(() => !initialValue);
+  const [isEmpty, setIsEmpty] = useState(() => {
+    // Approximate empty check from seed string (DOM not available yet)
+    const text = seedHtml.replace(/<[^>]*>/g, "").replace(/&nbsp;/gi, " ").trim();
+    return text.length === 0 && !/<img\b/i.test(seedHtml);
+  });
   const placeholderInset = placeholderInsetFromPadding(defaultPadding);
   
   // Padding state for individual sides
@@ -108,17 +119,33 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
     }
   );
 
-  // Initialize content and default padding
+  const applyHtmlToDom = useCallback((html: string) => {
+    if (!contentRef.current) return;
+    contentRef.current.innerHTML = html;
+    setIsEmpty(isEditorDomEmpty(contentRef.current));
+    // Wholesale HTML replace detaches prior nodes — drop resizer + saved ranges
+    setSelectedImg(null);
+    savedSelectionRef.current = null;
+  }, [setSelectedImg]);
+
+  // Mount seed: controlled uses value; uncontrolled uses initialValue once
+  // Intentionally empty deps — uncontrolled seed is mount-only; controlled updates use the value effect below
   useEffect(() => {
-    if (contentRef.current) {
-      if (initialValue && !contentRef.current.innerHTML) {
-        contentRef.current.innerHTML = initialValue;
-      }
-      // Apply default padding directly to DOM
-      contentRef.current.style.padding = defaultPadding;
-      setIsEmpty(isEditorDomEmpty(contentRef.current));
-    }
+    if (!contentRef.current) return;
+    const seed = isControlled ? (value ?? "") : (initialValue ?? "");
+    contentRef.current.innerHTML = seed;
+    contentRef.current.style.padding = defaultPadding;
+    setIsEmpty(isEditorDomEmpty(contentRef.current));
   }, []);
+
+  // Controlled sync: write when value differs from DOM (avoids caret jump on equal strings)
+  useEffect(() => {
+    if (!isControlled || !contentRef.current) return;
+    const next = value ?? "";
+    if (next !== contentRef.current.innerHTML) {
+      applyHtmlToDom(next);
+    }
+  }, [value, isControlled, applyHtmlToDom]);
 
   // Handle click outside dropdowns
   useEffect(() => {
@@ -153,6 +180,27 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
     }
     updateActiveFormats();
   };
+
+  useImperativeHandle(
+    ref,
+    () => {
+      const setHTML = (html: string) => {
+        applyHtmlToDom(html);
+        // Emit post-serialize DOM HTML so controlled parents match handleInput
+        onChange?.(contentRef.current?.innerHTML ?? html);
+      };
+      return {
+        focus: () => {
+          contentRef.current?.focus();
+        },
+        getHTML: () => contentRef.current?.innerHTML ?? "",
+        setHTML,
+        clear: () => setHTML(""),
+        getContentElement: () => contentRef.current,
+      };
+    },
+    [applyHtmlToDom, onChange]
+  );
 
   const getSelectedBlock = (): HTMLElement | null => {
     const selection = window.getSelection();
@@ -956,4 +1004,6 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({
       </div>
     </div>
   );
-};
+});
+
+EmailEditor.displayName = "EmailEditor";
