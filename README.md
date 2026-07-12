@@ -105,7 +105,9 @@ const myVariables = [
 
 ## Development
 
-Run the in-repo playground to exercise the editor without installing it into another project:
+Consumers install from npm and import `@bytecrate/react-editor` as shown above. The published package ships dual ESM/CJS builds and TypeScript types under `dist/`.
+
+Run the in-repo playground to exercise the editor without installing it into another project (dev aliases the package to source for HMR):
 
 ```bash
 npm install
@@ -118,6 +120,7 @@ Other local checks:
 npm test
 npm run lint
 npm run typecheck
+npm run build   # emit dist/ (also runs via prepublishOnly before publish)
 ```
 
 ## Dependencies
