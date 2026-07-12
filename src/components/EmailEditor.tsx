@@ -13,6 +13,15 @@ import { EDITOR_STYLES } from "../styles";
 import { ToolbarButton } from "./ToolbarButton";
 import { useImageResizer } from "../hooks/useImageResizer";
 import { sanitizeEmailHtml, sanitizeUrl } from "../lib/sanitizeHtml";
+import {
+  isEditorDomEmpty,
+  placeholderInsetFromPadding,
+  getSelectedBlock,
+  getSelectedLink,
+  unwrapLink,
+  saveSelection,
+  restoreSelection,
+} from "../lib/editorDom";
 
 const DEFAULT_TOOLBAR: ToolbarConfig = [
   ['undo', 'redo'],
@@ -27,38 +36,6 @@ const DEFAULT_TOOLBAR: ToolbarConfig = [
   ['unorderedList', 'orderedList'],
   ['link', 'image', 'blockquote', 'removeFormat']
 ];
-
-/** True when the contenteditable DOM has no meaningful text or contentful markup. */
-function isEditorDomEmpty(el: HTMLElement): boolean {
-  const text = (el.innerText || el.textContent || "").replace(/\u200B/g, "").trim();
-  if (text.length > 0) return false;
-
-  // Images / media / structural content count as non-empty even without text
-  if (el.querySelector("img, video, hr, table, iframe, object, embed, svg")) {
-    return false;
-  }
-
-  // Treat browser-default empty shells as empty (attrs ok: <br type="_moz">, styled empty <p>)
-  const html = (el.innerHTML || "")
-    .replace(/<br\b[^>]*>/gi, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/<\/?(?:p|div|span|font|b|i|u|strong|em|a)\b[^>]*>/gi, "")
-    .trim();
-  return html.length === 0;
-}
-
-/**
- * Resolve placeholder top/left from defaultPadding when it is a single px length
- * (e.g. "24px"). Multi-value shorthand and non-px units fall back to 24.
- */
-function placeholderInsetFromPadding(defaultPadding: string): number {
-  const trimmed = defaultPadding.trim();
-  // Only single-token px values are supported for placeholder offset
-  const match = /^([\d.]+)px$/i.exec(trimmed);
-  if (!match) return 24;
-  const n = parseFloat(match[1]);
-  return Number.isFinite(n) ? n : 24;
-}
 
 export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(function EmailEditor(
   {
@@ -211,31 +188,6 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     [applyHtmlToDom, onChange]
   );
 
-  const getSelectedBlock = (): HTMLElement | null => {
-    const selection = window.getSelection();
-    if (!selection || !selection.anchorNode || !contentRef.current) return null;
-    
-    let node: Node | null = selection.anchorNode;
-    
-    // If text node, start from parent
-    if (node.nodeType === Node.TEXT_NODE) {
-      node = node.parentNode;
-    }
-    
-    // Traverse up to find a suitable block or stop at root
-    while (node && node !== contentRef.current) {
-       if (node instanceof HTMLElement) {
-          const display = window.getComputedStyle(node).display;
-          if (display === 'block' || display === 'list-item' || display === 'flex' || display === 'grid') {
-             return node;
-          }
-       }
-       node = node.parentNode;
-    }
-    
-    return contentRef.current;
-  };
-
   const updateActiveFormats = useCallback(() => {
     const formats: string[] = [];
     const commands = [
@@ -294,7 +246,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     }
 
     // Update active padding from computed styles of the selected block
-    const block = getSelectedBlock();
+    const block = getSelectedBlock(contentRef.current);
     if (block) {
         const style = window.getComputedStyle(block);
         setPaddings({
@@ -338,7 +290,7 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
   };
 
   const updatePadding = (side: keyof typeof paddings, value: number) => {
-    const block = getSelectedBlock();
+    const block = getSelectedBlock(contentRef.current);
     if (block) {
         const sideName = side as string;
         const prop = `padding${sideName.charAt(0).toUpperCase() + sideName.slice(1)}`;
@@ -358,62 +310,6 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     setShowVariables(false);
   };
 
-  const saveSelection = () => {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
-    } else {
-      savedSelectionRef.current = null;
-    }
-  };
-
-  const restoreSelection = () => {
-    const range = savedSelectionRef.current;
-    if (!range) return;
-    const selection = window.getSelection();
-    if (!selection) return;
-    selection.removeAllRanges();
-    selection.addRange(range);
-    if (contentRef.current) {
-      contentRef.current.focus();
-    }
-  };
-
-  /** Walk from the caret/selection up to the editor root for an enclosing <a>. */
-  const getSelectedLink = (): HTMLAnchorElement | null => {
-    const selection = window.getSelection();
-    if (!selection || !selection.anchorNode || !contentRef.current) return null;
-
-    let node: Node | null = selection.anchorNode;
-    if (node.nodeType === Node.TEXT_NODE) {
-      node = node.parentNode;
-    }
-
-    while (node && node !== contentRef.current) {
-      if (node instanceof HTMLAnchorElement) {
-        return node;
-      }
-      node = node.parentNode;
-    }
-
-    // Also check the saved range (popup focus may have cleared live selection)
-    const saved = savedSelectionRef.current;
-    if (saved) {
-      let savedNode: Node | null = saved.commonAncestorContainer;
-      if (savedNode.nodeType === Node.TEXT_NODE) {
-        savedNode = savedNode.parentNode;
-      }
-      while (savedNode && savedNode !== contentRef.current) {
-        if (savedNode instanceof HTMLAnchorElement) {
-          return savedNode;
-        }
-        savedNode = savedNode.parentNode;
-      }
-    }
-
-    return null;
-  };
-
   const openLinkPicker = () => {
     if (showLinkPicker) {
       setShowLinkPicker(false);
@@ -422,8 +318,8 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     }
 
     // Capture selection before React re-render / focus moves into the popup
-    saveSelection();
-    const existing = getSelectedLink();
+    saveSelection(savedSelectionRef);
+    const existing = getSelectedLink(contentRef.current, savedSelectionRef.current);
     setLinkUrl(existing?.getAttribute('href') ?? '');
     setIsEditingLink(Boolean(existing));
     setShowLinkPicker(true);
@@ -435,8 +331,8 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
 
   const applyLink = (urlOverride?: string) => {
     const raw = (urlOverride ?? linkUrl).trim();
-    restoreSelection();
-    const existing = getSelectedLink();
+    restoreSelection(savedSelectionRef, contentRef.current);
+    const existing = getSelectedLink(contentRef.current, savedSelectionRef.current);
 
     if (!raw) {
       if (existing) {
@@ -477,20 +373,9 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     setIsEditingLink(false);
   };
 
-  const unwrapLink = (anchor: HTMLAnchorElement) => {
-    const parent = anchor.parentNode;
-    if (!parent) return;
-    while (anchor.firstChild) {
-      parent.insertBefore(anchor.firstChild, anchor);
-    }
-    parent.removeChild(anchor);
-    // Normalize adjacent text nodes so the editor content stays clean
-    parent.normalize();
-  };
-
   const removeLink = () => {
-    restoreSelection();
-    const existing = getSelectedLink();
+    restoreSelection(savedSelectionRef, contentRef.current);
+    const existing = getSelectedLink(contentRef.current, savedSelectionRef.current);
     if (existing) {
       unwrapLink(existing);
       if (contentRef.current) {
