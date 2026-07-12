@@ -4,15 +4,12 @@ import { EmailEditorProps, EmailEditorRef } from "../types";
 import { DEFAULT_VARIABLES } from "../constants";
 import { EDITOR_STYLES } from "../styles";
 import { useImageResizer } from "../hooks/useImageResizer";
-import { sanitizeEmailHtml, sanitizeUrl } from "../lib/sanitizeHtml";
+import { useEditorCommands } from "../hooks/useEditorCommands";
+import { sanitizeEmailHtml } from "../lib/sanitizeHtml";
 import {
   isEditorDomEmpty,
   placeholderInsetFromPadding,
   getSelectedBlock,
-  getSelectedLink,
-  unwrapLink,
-  saveSelection,
-  restoreSelection,
 } from "../lib/editorDom";
 import { EditorToolbar, DEFAULT_TOOLBAR } from "./toolbar/EditorToolbar";
 
@@ -68,104 +65,6 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
   const [showLinkPicker, setShowLinkPicker] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [isEditingLink, setIsEditingLink] = useState(false);
-
-  // Hook up useImageResizer
-  const { selectedImg, setSelectedImg, handleResizeMouseDown, updateResizer } = useImageResizer(
-    contentRef,
-    resizerRef,
-    () => {
-      handleInput(); // Save state on resize end
-    }
-  );
-
-  /** Sanitize external HTML when the sanitize prop is enabled (default). */
-  const prepareHtml = useCallback(
-    (html: string) => (sanitize === false ? html : sanitizeEmailHtml(html)),
-    [sanitize]
-  );
-
-  const applyHtmlToDom = useCallback((html: string) => {
-    if (!contentRef.current) return;
-    contentRef.current.innerHTML = prepareHtml(html);
-    setIsEmpty(isEditorDomEmpty(contentRef.current));
-    // Wholesale HTML replace detaches prior nodes — drop resizer + saved ranges
-    setSelectedImg(null);
-    savedSelectionRef.current = null;
-  }, [setSelectedImg, prepareHtml]);
-
-  // Mount seed: controlled uses value; uncontrolled uses initialValue once
-  // Intentionally empty deps — uncontrolled seed is mount-only; controlled updates use the value effect below
-  useEffect(() => {
-    if (!contentRef.current) return;
-    const seed = isControlled ? (value ?? "") : (initialValue ?? "");
-    contentRef.current.innerHTML = prepareHtml(seed);
-    contentRef.current.style.padding = defaultPadding;
-    setIsEmpty(isEditorDomEmpty(contentRef.current));
-  }, []);
-
-  // Controlled sync: write when sanitized value differs from DOM (avoids caret jump)
-  useEffect(() => {
-    if (!isControlled || !contentRef.current) return;
-    const next = prepareHtml(value ?? "");
-    if (next !== contentRef.current.innerHTML) {
-      applyHtmlToDom(value ?? "");
-    }
-  }, [value, isControlled, applyHtmlToDom, prepareHtml]);
-
-  // Handle click outside dropdowns
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
-        setShowColorPicker(false);
-      }
-      if (variablesRef.current && !variablesRef.current.contains(event.target as Node)) {
-        setShowVariables(false);
-      }
-      if (paddingPickerRef.current && !paddingPickerRef.current.contains(event.target as Node)) {
-        setShowPaddingPicker(false);
-      }
-      if (imagePickerRef.current && !imagePickerRef.current.contains(event.target as Node)) {
-        setShowImagePicker(false);
-      }
-      if (linkPickerRef.current && !linkPickerRef.current.contains(event.target as Node)) {
-        setShowLinkPicker(false);
-        setIsEditingLink(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleInput = () => {
-    if (contentRef.current) {
-      if (onChange) {
-        onChange(contentRef.current.innerHTML);
-      }
-      setIsEmpty(isEditorDomEmpty(contentRef.current));
-    }
-    updateActiveFormats();
-  };
-
-  useImperativeHandle(
-    ref,
-    () => {
-      const setHTML = (html: string) => {
-        applyHtmlToDom(html);
-        // Emit post-serialize DOM HTML so controlled parents match handleInput
-        onChange?.(contentRef.current?.innerHTML ?? html);
-      };
-      return {
-        focus: () => {
-          contentRef.current?.focus();
-        },
-        getHTML: () => contentRef.current?.innerHTML ?? "",
-        setHTML,
-        clear: () => setHTML(""),
-        getContentElement: () => contentRef.current,
-      };
-    },
-    [applyHtmlToDom, onChange]
-  );
 
   const updateActiveFormats = useCallback(() => {
     const formats: string[] = [];
@@ -237,218 +136,137 @@ export const EmailEditor = React.forwardRef<EmailEditorRef, EmailEditorProps>(fu
     }
   }, []);
 
-  const execCommand = (command: string, value: string | undefined = undefined) => {
-    document.execCommand(command, false, value);
+  const handleInput = useCallback(() => {
     if (contentRef.current) {
-      contentRef.current.focus();
+      if (onChange) {
+        onChange(contentRef.current.innerHTML);
+      }
+      setIsEmpty(isEditorDomEmpty(contentRef.current));
     }
-    handleInput();
     updateActiveFormats();
-  };
+  }, [onChange, updateActiveFormats]);
 
-  const execFontSize = (size: string) => {
+  // Hook up useImageResizer
+  const { selectedImg, setSelectedImg, handleResizeMouseDown } = useImageResizer(
+    contentRef,
+    resizerRef,
+    () => {
+      handleInput(); // Save state on resize end
+    }
+  );
+
+  /** Sanitize external HTML when the sanitize prop is enabled (default). */
+  const prepareHtml = useCallback(
+    (html: string) => (sanitize === false ? html : sanitizeEmailHtml(html)),
+    [sanitize]
+  );
+
+  const applyHtmlToDom = useCallback((html: string) => {
     if (!contentRef.current) return;
+    contentRef.current.innerHTML = prepareHtml(html);
+    setIsEmpty(isEditorDomEmpty(contentRef.current));
+    // Wholesale HTML replace detaches prior nodes — drop resizer + saved ranges
+    setSelectedImg(null);
+    savedSelectionRef.current = null;
+  }, [setSelectedImg, prepareHtml]);
 
-    // Track any pre-existing font tags with size="7" to avoid modifying them
-    const preExisting = new Set(contentRef.current.querySelectorAll('font[size="7"]'));
+  // Mount seed: controlled uses value; uncontrolled uses initialValue once
+  // Intentionally empty deps — uncontrolled seed is mount-only; controlled updates use the value effect below
+  useEffect(() => {
+    if (!contentRef.current) return;
+    const seed = isControlled ? (value ?? "") : (initialValue ?? "");
+    contentRef.current.innerHTML = prepareHtml(seed);
+    contentRef.current.style.padding = defaultPadding;
+    setIsEmpty(isEditorDomEmpty(contentRef.current));
+  }, []);
 
-    document.execCommand('fontSize', false, '7');
+  // Controlled sync: write when sanitized value differs from DOM (avoids caret jump)
+  useEffect(() => {
+    if (!isControlled || !contentRef.current) return;
+    const next = prepareHtml(value ?? "");
+    if (next !== contentRef.current.innerHTML) {
+      applyHtmlToDom(value ?? "");
+    }
+  }, [value, isControlled, applyHtmlToDom, prepareHtml]);
 
-    // Query current font tags and filter for only the newly inserted ones
-    const currentFonts = contentRef.current.querySelectorAll('font[size="7"]');
-    currentFonts.forEach(el => {
-      if (!preExisting.has(el)) {
-        el.removeAttribute('size');
-        (el as HTMLElement).style.fontSize = size;
+  // Handle click outside dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
       }
-    });
-
-    contentRef.current.focus();
-    handleInput();
-    updateActiveFormats();
-  };
-
-  const updatePadding = (side: keyof typeof paddings, value: number) => {
-    const block = getSelectedBlock(contentRef.current);
-    if (block) {
-        const sideName = side as string;
-        const prop = `padding${sideName.charAt(0).toUpperCase() + sideName.slice(1)}`;
-        // @ts-ignore
-        block.style[prop] = `${value}px`;
-        setPaddings(prev => ({ ...prev, [side]: value }));
-        handleInput();
-    }
-  };
-
-  const insertVariable = (value: string) => {
-    document.execCommand('insertText', false, value);
-    if (contentRef.current) {
-      contentRef.current.focus();
-    }
-    handleInput();
-    setShowVariables(false);
-  };
-
-  const openLinkPicker = () => {
-    if (showLinkPicker) {
-      setShowLinkPicker(false);
-      setIsEditingLink(false);
-      return;
-    }
-
-    // Capture selection before React re-render / focus moves into the popup
-    saveSelection(savedSelectionRef);
-    const existing = getSelectedLink(contentRef.current, savedSelectionRef.current);
-    setLinkUrl(existing?.getAttribute('href') ?? '');
-    setIsEditingLink(Boolean(existing));
-    setShowLinkPicker(true);
-    setShowImagePicker(false);
-    setShowVariables(false);
-    setShowColorPicker(false);
-    setShowPaddingPicker(false);
-  };
-
-  const applyLink = (urlOverride?: string) => {
-    const raw = (urlOverride ?? linkUrl).trim();
-    restoreSelection(savedSelectionRef, contentRef.current);
-    const existing = getSelectedLink(contentRef.current, savedSelectionRef.current);
-
-    if (!raw) {
-      if (existing) {
-        unwrapLink(existing);
-        if (contentRef.current) {
-          contentRef.current.focus();
-        }
-        handleInput();
-        updateActiveFormats();
+      if (variablesRef.current && !variablesRef.current.contains(event.target as Node)) {
+        setShowVariables(false);
       }
-      setShowLinkPicker(false);
-      setLinkUrl('');
-      setIsEditingLink(false);
-      return;
-    }
-
-    // Block dangerous schemes when sanitization is on (default)
-    const url = sanitize === false ? raw : sanitizeUrl(raw);
-    if (url === null) {
-      // Reject javascript:/etc. without modifying the selection
-      return;
-    }
-
-    if (existing) {
-      // Edit path: update the existing anchor so merge tags and non-URL hrefs are preserved
-      existing.setAttribute('href', url);
-      if (contentRef.current) {
-        contentRef.current.focus();
+      if (paddingPickerRef.current && !paddingPickerRef.current.contains(event.target as Node)) {
+        setShowPaddingPicker(false);
       }
-      handleInput();
-      updateActiveFormats();
-    } else {
-      execCommand('createLink', url);
-    }
-
-    setShowLinkPicker(false);
-    setLinkUrl('');
-    setIsEditingLink(false);
-  };
-
-  const removeLink = () => {
-    restoreSelection(savedSelectionRef, contentRef.current);
-    const existing = getSelectedLink(contentRef.current, savedSelectionRef.current);
-    if (existing) {
-      unwrapLink(existing);
-      if (contentRef.current) {
-        contentRef.current.focus();
+      if (imagePickerRef.current && !imagePickerRef.current.contains(event.target as Node)) {
+        setShowImagePicker(false);
       }
-      handleInput();
-      updateActiveFormats();
-    }
-    setShowLinkPicker(false);
-    setLinkUrl('');
-    setIsEditingLink(false);
-  };
-
-  const applyLinkVariable = (value: string) => {
-    setLinkUrl(value);
-    applyLink(value);
-  };
-
-  const handleImageUploadClick = () => {
-    setShowImagePicker(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const insertImageIfSafe = (url: string) => {
-    const safe = sanitize === false ? url.trim() : sanitizeUrl(url);
-    if (safe) {
-      execCommand("insertImage", safe);
-    }
-  };
-
-  const handleImageUrlClick = () => {
-    setShowImagePicker(false);
-    const url = prompt("Enter Image URL:");
-    if (url) insertImageIfSafe(url);
-  };
-
-  const handleImageSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (onImageUpload) {
-        try {
-          const url = await onImageUpload(file);
-          if (url) {
-            insertImageIfSafe(url);
-          }
-        } catch (err) {
-          console.error("Error uploading image:", err);
-        }
-      } else {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const base64 = event.target?.result as string;
-          if (base64) {
-            insertImageIfSafe(base64);
-          }
-        };
-        reader.readAsDataURL(file);
+      if (linkPickerRef.current && !linkPickerRef.current.contains(event.target as Node)) {
+        setShowLinkPicker(false);
+        setIsEditingLink(false);
       }
-    }
-    // Reset the input value to allow selecting the same file again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    if (sanitize === false) {
-      // Explicit escape hatch: allow native browser paste
-      return;
-    }
+  useImperativeHandle(
+    ref,
+    () => {
+      const setHTML = (html: string) => {
+        applyHtmlToDom(html);
+        // Emit post-serialize DOM HTML so controlled parents match handleInput
+        onChange?.(contentRef.current?.innerHTML ?? html);
+      };
+      return {
+        focus: () => {
+          contentRef.current?.focus();
+        },
+        getHTML: () => contentRef.current?.innerHTML ?? "",
+        setHTML,
+        clear: () => setHTML(""),
+        getContentElement: () => contentRef.current,
+      };
+    },
+    [applyHtmlToDom, onChange]
+  );
 
-    const html = e.clipboardData?.getData("text/html");
-    const text = e.clipboardData?.getData("text/plain");
-
-    // Only take over when we have text/html or plain text. Leave image-only
-    // clipboard pastes (screenshots, etc.) to the browser default.
-    if (!html && !text) {
-      return;
-    }
-
-    e.preventDefault();
-
-    if (html) {
-      // onPasteHtml fully replaces the built-in sanitizer for this path —
-      // hosts must return safe HTML (equal trust boundary to sanitize={false} for paste).
-      const clean = onPasteHtml ? onPasteHtml(html) : sanitizeEmailHtml(html);
-      document.execCommand("insertHTML", false, clean);
-    } else if (text) {
-      document.execCommand("insertText", false, text);
-    }
-    handleInput();
-  };
+  const {
+    execCommand,
+    execFontSize,
+    updatePadding,
+    insertVariable,
+    openLinkPicker,
+    applyLink,
+    removeLink,
+    applyLinkVariable,
+    handleImageUploadClick,
+    handleImageUrlClick,
+    handleImageSelection,
+    handlePaste,
+  } = useEditorCommands({
+    contentRef,
+    savedSelectionRef,
+    fileInputRef,
+    handleInput,
+    updateActiveFormats,
+    sanitize,
+    onPasteHtml,
+    onImageUpload,
+    linkUrl,
+    setLinkUrl,
+    showLinkPicker,
+    setShowLinkPicker,
+    setIsEditingLink,
+    setShowImagePicker,
+    setShowVariables,
+    setShowColorPicker,
+    setShowPaddingPicker,
+    setPaddings,
+  });
 
   return (
     <div className={`ree-container ${className}`} style={style}>
