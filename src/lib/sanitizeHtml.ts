@@ -4,8 +4,8 @@
  * Strips common unsafe patterns (scripts, event handlers, dangerous URLs).
  * Not a general XSS proof — hosts must still treat untrusted HTML carefully.
  *
- * TODO (plan 020): allow `data-variable` and `contenteditable="false"` on
- * merge-tag chip spans when that feature lands.
+ * Merge-tag chips: allows `data-merge-tag`, `contenteditable="false"`,
+ * `class`, and `title` so `.ree-merge-tag` spans survive sanitization.
  */
 
 const ALLOWED_TAGS = new Set([
@@ -75,8 +75,24 @@ const ALLOWED_ATTRS = new Set([
   "size",
   "face",
   "color",
-  // TODO plan 020: "data-variable", "contenteditable"
 ]);
+
+/** Attrs kept only on merge-tag chip spans (plan 020). */
+const CHIP_ONLY_ATTRS = new Set([
+  "class",
+  "title",
+  "data-merge-tag",
+  "contenteditable",
+]);
+
+/** True when element is a merge-tag chip (span.ree-merge-tag with data-merge-tag). */
+function isMergeTagChip(el: Element): boolean {
+  if (el.tagName.toUpperCase() !== "SPAN") return false;
+  const cls = el.getAttribute("class") ?? "";
+  if (!cls.split(/\s+/).includes("ree-merge-tag")) return false;
+  const token = el.getAttribute("data-merge-tag");
+  return token != null && token.length > 0;
+}
 
 /**
  * Safe CSS property names commonly used in email HTML.
@@ -230,6 +246,9 @@ function sanitizeStyleValue(style: string): string | null {
 }
 
 function sanitizeElementAttributes(el: Element): void {
+  // Detect chip before stripping attrs (class / data-merge-tag may be removed)
+  const chip = isMergeTagChip(el);
+
   // Snapshot attribute names — live NamedNodeMap mutates as we remove
   const names = Array.from(el.attributes).map((a) => a.name);
 
@@ -239,6 +258,28 @@ function sanitizeElementAttributes(el: Element): void {
     // Always strip event handlers and namespaced/exotic attrs
     if (lower.startsWith("on") || lower === "srcdoc" || lower.includes(":")) {
       el.removeAttribute(name);
+      continue;
+    }
+
+    // Merge-tag chip attrs: only on span.ree-merge-tag with data-merge-tag
+    if (CHIP_ONLY_ATTRS.has(lower)) {
+      if (!chip) {
+        el.removeAttribute(name);
+        continue;
+      }
+      if (lower === "contenteditable") {
+        const v = (el.getAttribute(name) ?? "").trim().toLowerCase();
+        if (v !== "false") {
+          el.removeAttribute(name);
+        }
+        continue;
+      }
+      if (lower === "class") {
+        // Normalize to the single chip class (drop host/styling spoof classes)
+        el.setAttribute("class", "ree-merge-tag");
+        continue;
+      }
+      // title / data-merge-tag: keep as-is on chips
       continue;
     }
 
@@ -290,6 +331,7 @@ function sanitizeElementAttributes(el: Element): void {
       if (/javascript:|data:/i.test(rel)) {
         el.removeAttribute("rel");
       }
+      continue;
     }
   }
 

@@ -53,8 +53,8 @@ export interface EditorToolbarProps {
   // Variables
   variables: Variable[];
   showVariables: boolean;
-  setShowVariables: (show: boolean) => void;
-  insertVariable: (value: string) => void;
+  openVariablesPicker: () => void;
+  insertVariable: (variable: Variable) => void;
   variablesRef: React.RefObject<HTMLDivElement | null>;
   // Link
   linkUrl: string;
@@ -96,7 +96,7 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
     colorPickerRef,
     variables,
     showVariables,
-    setShowVariables,
+    openVariablesPicker,
     insertVariable,
     variablesRef,
     linkUrl,
@@ -203,7 +203,7 @@ export function EditorToolbar(props: EditorToolbarProps): React.JSX.Element {
             key="variables"
             variables={variables}
             show={showVariables}
-            onToggle={() => setShowVariables(!showVariables)}
+            onToggle={openVariablesPicker}
             onInsert={insertVariable}
             containerRef={variablesRef}
           />

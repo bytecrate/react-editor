@@ -9,7 +9,10 @@ export interface Variable {
 export interface EmailEditorRef {
   /** Focus the contenteditable surface */
   focus: () => void;
-  /** Current serialized HTML */
+  /**
+   * Current serialized HTML. Merge-tag chips are replaced with plain tokens
+   * (e.g. `{{firstName}}`) for host-friendly string replace.
+   */
   getHTML: () => string;
   /**
    * Replace editor HTML. Updates the DOM and calls `onChange` when provided
@@ -48,6 +51,13 @@ export interface EmailEditorProps {
    */
   enableShortcuts?: boolean;
   variables?: Variable[];
+  /**
+   * When true (default), insert variables as non-editable chip spans in the
+   * editor DOM. `onChange` / `getHTML` still emit plain merge tokens
+   * (e.g. `{{firstName}}`) for host string-replace. Set `false` to insert
+   * plain text via `insertText` (legacy behavior).
+   */
+  variablesAsChips?: boolean;
   defaultPadding?: string;
   /**
    * Optional callback to handle image uploads.

@@ -170,4 +170,34 @@ describe('sanitizeEmailHtml', () => {
     expect(out).not.toMatch(/srcdoc/i);
     expect(out).toContain('y');
   });
+
+  it('preserves merge-tag chip spans and their attributes', () => {
+    const chip =
+      '<span class="ree-merge-tag" data-merge-tag="{{firstName}}" contenteditable="false" title="{{firstName}}">First Name</span>';
+    const out = sanitizeEmailHtml(`<p>Hi ${chip}</p>`);
+    expect(out).toMatch(/class=["']ree-merge-tag["']/);
+    expect(out).toMatch(/data-merge-tag=["']\{\{firstName\}\}["']/);
+    expect(out).toMatch(/contenteditable=["']false["']/i);
+    expect(out).toMatch(/title=["']\{\{firstName\}\}["']/);
+    expect(out).toContain('First Name');
+  });
+
+  it('does not allow contenteditable or chip attrs on non-chip elements', () => {
+    const out = sanitizeEmailHtml(
+      '<div contenteditable="false" class="locked" title="t">x</div>'
+    );
+    expect(out).not.toMatch(/contenteditable/i);
+    expect(out).not.toMatch(/class=/i);
+    expect(out).not.toMatch(/title=/i);
+    expect(out).toContain('x');
+  });
+
+  it('strips chip-like class without data-merge-tag', () => {
+    const out = sanitizeEmailHtml(
+      '<span class="ree-merge-tag" contenteditable="false">First Name</span>'
+    );
+    expect(out).not.toMatch(/contenteditable/i);
+    expect(out).not.toMatch(/ree-merge-tag/);
+    expect(out).toContain('First Name');
+  });
 });

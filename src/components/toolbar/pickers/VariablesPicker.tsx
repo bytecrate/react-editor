@@ -6,7 +6,7 @@ export interface VariablesPickerProps {
   variables: Variable[];
   show: boolean;
   onToggle: () => void;
-  onInsert: (value: string) => void;
+  onInsert: (variable: Variable) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -64,7 +64,7 @@ export function VariablesPicker({
                   className="ree-list-btn"
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    onInsert(variable.value);
+                    onInsert(variable);
                   }}
                 >
                   {variable.label}

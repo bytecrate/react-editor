@@ -7,7 +7,8 @@ import {
   restoreSelection,
 } from "../lib/editorDom";
 import { sanitizeEmailHtml, sanitizeUrl } from "../lib/sanitizeHtml";
-import type { PaddingSide, Paddings } from "../types";
+import { createMergeTagElement, hydrateMergeTags } from "../lib/mergeTags";
+import type { PaddingSide, Paddings, Variable } from "../types";
 
 export interface UseEditorCommandsOptions {
   contentRef: React.RefObject<HTMLDivElement | null>;
@@ -16,6 +17,10 @@ export interface UseEditorCommandsOptions {
   handleInput: () => void;
   updateActiveFormats: () => void;
   sanitize: boolean;
+  /** When true (default), insert variables as non-editable chip spans. */
+  variablesAsChips?: boolean;
+  /** Used to label chips when hydrating merge tokens on paste. */
+  variables?: Variable[];
   onPasteHtml?: (html: string) => string;
   onImageUpload?: (file: File) => Promise<string>;
   onImageUploadError?: (error: unknown) => void;
@@ -28,6 +33,7 @@ export interface UseEditorCommandsOptions {
   setIsEditingLink: (editing: boolean) => void;
   // Picker close helpers
   setShowImagePicker: (show: boolean) => void;
+  showVariables: boolean;
   setShowVariables: (show: boolean) => void;
   setShowColorPicker: (show: boolean) => void;
   setShowPaddingPicker: (show: boolean) => void;
@@ -42,6 +48,8 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
     handleInput,
     updateActiveFormats,
     sanitize,
+    variablesAsChips = true,
+    variables = [],
     onPasteHtml,
     onImageUpload,
     onImageUploadError,
@@ -52,6 +60,7 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
     setShowLinkPicker,
     setIsEditingLink,
     setShowImagePicker,
+    showVariables,
     setShowVariables,
     setShowColorPicker,
     setShowPaddingPicker,
@@ -110,16 +119,78 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
     [contentRef, handleInput, setPaddings]
   );
 
+  const openVariablesPicker = useCallback(() => {
+    if (showVariables) {
+      setShowVariables(false);
+      return;
+    }
+    // Capture caret before focus moves to the toolbar popup
+    saveSelection(savedSelectionRef);
+    setShowVariables(true);
+    setShowLinkPicker(false);
+    setIsEditingLink(false);
+    setShowImagePicker(false);
+    setShowColorPicker(false);
+    setShowPaddingPicker(false);
+  }, [
+    showVariables,
+    savedSelectionRef,
+    setShowVariables,
+    setShowLinkPicker,
+    setIsEditingLink,
+    setShowImagePicker,
+    setShowColorPicker,
+    setShowPaddingPicker,
+  ]);
+
   const insertVariable = useCallback(
-    (value: string) => {
-      document.execCommand("insertText", false, value);
+    (variable: Variable | string) => {
+      const v: Variable =
+        typeof variable === "string"
+          ? { label: variable, value: variable }
+          : variable;
+
+      restoreSelection(savedSelectionRef, contentRef.current);
+
+      if (variablesAsChips === false) {
+        document.execCommand("insertText", false, v.value);
+      } else {
+        const el = createMergeTagElement(v);
+        const inserted = document.execCommand("insertHTML", false, el.outerHTML);
+        if (!inserted && contentRef.current) {
+          const sel = window.getSelection();
+          const range =
+            sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+          const rangeInEditor =
+            range != null &&
+            contentRef.current.contains(range.commonAncestorContainer);
+
+          if (rangeInEditor && range) {
+            range.deleteContents();
+            range.insertNode(el);
+            range.setStartAfter(el);
+            range.collapse(true);
+            sel!.removeAllRanges();
+            sel!.addRange(range);
+          } else {
+            contentRef.current.appendChild(el);
+          }
+        }
+      }
+
       if (contentRef.current) {
         contentRef.current.focus();
       }
       handleInput();
       setShowVariables(false);
     },
-    [contentRef, handleInput, setShowVariables]
+    [
+      contentRef,
+      savedSelectionRef,
+      handleInput,
+      setShowVariables,
+      variablesAsChips,
+    ]
   );
 
   const openLinkPicker = useCallback(() => {
@@ -369,14 +440,17 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
       if (html) {
         // onPasteHtml fully replaces the built-in sanitizer for this path —
         // hosts must return safe HTML (equal trust boundary to sanitize={false} for paste).
-        const clean = onPasteHtml ? onPasteHtml(html) : sanitizeEmailHtml(html);
+        let clean = onPasteHtml ? onPasteHtml(html) : sanitizeEmailHtml(html);
+        if (variablesAsChips !== false) {
+          clean = hydrateMergeTags(clean, variables);
+        }
         document.execCommand("insertHTML", false, clean);
       } else if (text) {
         document.execCommand("insertText", false, text);
       }
       handleInput();
     },
-    [sanitize, onPasteHtml, handleInput]
+    [sanitize, onPasteHtml, handleInput, variablesAsChips, variables]
   );
 
   return {
@@ -384,6 +458,7 @@ export function useEditorCommands(options: UseEditorCommandsOptions) {
     execFontSize,
     updatePadding,
     insertVariable,
+    openVariablesPicker,
     openLinkPicker,
     applyLink,
     removeLink,

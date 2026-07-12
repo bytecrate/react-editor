@@ -10,7 +10,7 @@ A lightweight, robust, and feature-rich React email template editor. Built with 
 *   **Layout**: Advanced padding controls for individual sides (Top, Right, Bottom, Left) on specific blocks.
 *   **Structure**: Ordered and Unordered lists, Blockquotes.
 *   **Media & Links**: Image insertion via URL, File Upload (Base64 default, custom async upload supported), and Hyperlink management.
-*   **Templating**: Built-in Variable/Merge Tag insertion support (e.g., `{{firstName}}`).
+*   **Templating**: Built-in variable/merge-tag insertion as non-editable chips (serializes to plain `{{tokens}}` for hosts).
 *   **History**: Undo/Redo functionality.
 *   **Keyboard shortcuts**: Mod+B/I/U for formatting, Mod+K for links, Mod+Z / Mod+Shift+Z / Mod+Y for undo/redo (disable with `enableShortcuts={false}`).
 *   **Accessibility baseline**: Named toolbar controls, labeled editor surface, picker dialogs/menus, and Escape-to-close.
@@ -125,9 +125,15 @@ Inserted images always get an `alt` attribute:
 
 Empty `alt` is valid for decorative images; hosts should pass meaningful `defaultImageAlt` for accessibility and ESP lint rules.
 
-## Custom Variables
+## Custom Variables / merge-tag chips
 
 You can pass a custom list of variables (merge tags) that appear in the `{}` toolbar dropdown.
+
+By default (`variablesAsChips={true}`), variables insert as **non-editable chips** in the editor UI:
+
+* **Display DOM**: a `contenteditable="false"` span (`.ree-merge-tag`) showing the variable **label**, with the raw token in `data-merge-tag`.
+* **`onChange` / `getHTML` output (policy B)**: chips are serialized back to plain tokens (e.g. `{{firstName}}`) so hosts can keep using `html.replaceAll('{{x}}', …)` without parsing chip markup.
+* **Load path**: `initialValue`, controlled `value`, and `ref.setHTML` hydrate plain `{{…}}` tokens in text nodes into chips (link `href` merge tags stay as attribute text — they are not chips).
 
 ```tsx
 const myVariables = [
@@ -141,6 +147,14 @@ const myVariables = [
   onChange={handleChange} 
 />
 ```
+
+Legacy plain-text insert (no chips):
+
+```tsx
+<EmailEditor variables={myVariables} variablesAsChips={false} />
+```
+
+**Note:** Changing the `variables` list mid-edit does not re-label existing chips (avoids caret jumps). Remount or `setHTML` if you need a full re-hydrate.
 
 ## HTML sanitization and paste
 
@@ -202,6 +216,7 @@ Shortcuts are not handled while typing in toolbar inputs (link URL, color picker
 | `value` | `string` | `-` | Controlled HTML. When set, DOM syncs when the string changes. |
 | `onChange` | `(html: string) => void` | `-` | Callback fired whenever content changes (including `ref.setHTML` / `clear`). |
 | `variables` | `Array<{ label: string, value: string }>` | `DEFAULT_VARIABLES` | Array of variables for the insert dropdown. |
+| `variablesAsChips` | `boolean` | `true` | Insert variables as non-editable chips in the DOM; `onChange`/`getHTML` still emit plain tokens. Set `false` for legacy `insertText`. |
 | `placeholder` | `string` | `"Start writing..."` | Placeholder text shown when empty; also used as the surface accessible name when `ariaLabel` is omitted. |
 | `ariaLabel` | `string` | `-` | Accessible name for the contenteditable surface (overrides `placeholder` for a11y). |
 | `enableShortcuts` | `boolean` | `true` | Handle Mod+B/I/U/K/Z (and redo) while the editor surface is focused. |
